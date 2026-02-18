@@ -17,7 +17,7 @@ To avoid huge PRs, this repo includes a small one-day snapshot that can be seede
 - `app/src/main/assets/bootstrap/nyse_daily_snapshot_2016-12-30.csv`
 - columns: `symbol,date,open,high,low,close,volume`
 
-## Optional full-history generation
+## Generate full-history file (optional)
 
 ```bash
 python scripts/prepare_nyse_daily_prices.py
@@ -31,4 +31,4 @@ and writes:
 
 - `artifacts/nyse_daily_prices_room.csv`
 
-If needed, copy generated output for app assets/bootstrap workflows.
+If you need to ship a generated file in assets for manual workflows, copy to the bootstrap assets folder.
