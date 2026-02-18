@@ -28,6 +28,7 @@ See free-API comparisons and batch strategy notes here:
 ## Implemented behavior
 
 - Background refresh every **20 minutes** using WorkManager (retry/backoff + network constraint).
+- One-time NYSE bootstrap worker now fetches the full symbol universe from Twelve Data (`/stocks`) and incrementally hydrates daily history into `daily_prices` in chunks each run.
 - Worker checks only during NYSE market hours (Mon-Fri, 09:30-16:00 America/New_York).
 - Offline caching with Room:
   - `stocks`

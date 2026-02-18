@@ -39,4 +39,10 @@ interface PriceDao {
 
     @Query("DELETE FROM daily_prices WHERE date < :minDate")
     suspend fun trimDailyBefore(minDate: String)
+
+    @Query("SELECT s.symbol FROM stocks s LEFT JOIN daily_prices d ON d.symbol = s.symbol WHERE d.symbol IS NULL ORDER BY s.symbol LIMIT :limit")
+    suspend fun symbolsWithoutDaily(limit: Int): List<String>
+
+    @Query("SELECT COUNT(*) FROM stocks s LEFT JOIN daily_prices d ON d.symbol = s.symbol WHERE d.symbol IS NULL")
+    suspend fun countSymbolsWithoutDaily(): Int
 }
