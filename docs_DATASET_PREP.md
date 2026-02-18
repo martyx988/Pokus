@@ -1,24 +1,34 @@
 # NYSE historical daily dataset prep
 
-This project now includes a **small committed bootstrap snapshot** with one trading day for all symbols available in the source dataset.
+This project uses `DailyPriceEntity` with columns:
 
-## Committed one-day snapshot (for short-term bootstrap)
+- `symbol`
+- `date` (`YYYY-MM-DD`)
+- `open`
+- `high`
+- `low`
+- `close`
+- `volume`
 
-- File in repo: `app/src/main/assets/bootstrap/nyse_daily_snapshot_2016-12-30.csv`
-- Columns: `symbol,date,open,high,low,close,volume`
+## Committed one-day snapshot (short-term bootstrap)
 
-This file is intentionally small enough to keep in Git and can be loaded directly into Room on first bootstrap.
+To avoid huge PRs, this repo includes a small one-day snapshot that can be seeded directly into Room:
 
-## Optional: regenerate from source
+- `app/src/main/assets/bootstrap/nyse_daily_snapshot_2016-12-30.csv`
+- columns: `symbol,date,open,high,low,close,volume`
+
+## Optional full-history generation
 
 ```bash
 python scripts/prepare_nyse_daily_prices.py
 ```
 
-Source used by the script:
+The script downloads data from:
 
 - `https://raw.githubusercontent.com/ashishpatel26/NYSE-STOCK_MARKET-ANALYSIS-USING-LSTM/master/nyse/prices.csv`
 
-Generated full-history output:
+and writes:
 
 - `artifacts/nyse_daily_prices_room.csv`
+
+If needed, copy generated output for app assets/bootstrap workflows.
