@@ -17,7 +17,9 @@ if [ ! -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
   fi
 fi
 
+set +o pipefail
 yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" \
   "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+set -o pipefail
 
 echo "Android SDK ready at: $SDK_ROOT"
