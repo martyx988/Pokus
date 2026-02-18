@@ -1,6 +1,6 @@
 # NYSE historical daily dataset prep
 
-This project uses `DailyPriceEntity` with the columns:
+This project uses `DailyPriceEntity` with columns:
 
 - `symbol`
 - `date` (`YYYY-MM-DD`)
@@ -10,9 +10,14 @@ This project uses `DailyPriceEntity` with the columns:
 - `close`
 - `volume`
 
-Use the helper script below to download and convert a public NYSE dataset into this app-ready format.
+## Committed one-day snapshot (short-term bootstrap)
 
-## Generate the file
+To avoid huge PRs, this repo includes a small one-day snapshot that can be seeded directly into Room:
+
+- `app/src/main/assets/bootstrap/nyse_daily_snapshot_2016-12-30.csv`
+- columns: `symbol,date,open,high,low,close,volume`
+
+## Generate full-history file (optional)
 
 ```bash
 python scripts/prepare_nyse_daily_prices.py
@@ -26,10 +31,4 @@ and writes:
 
 - `artifacts/nyse_daily_prices_room.csv`
 
-## Where to place the converted file in this repo
-
-Copy the converted file to:
-
-- `app/src/main/assets/bootstrap/nyse_daily_prices_room.csv`
-
-This keeps the file in a conventional Android assets location for future offline/bootstrap ingestion.
+If you need to ship a generated file in assets for manual workflows, copy to the bootstrap assets folder.
