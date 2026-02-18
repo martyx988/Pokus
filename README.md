@@ -108,3 +108,24 @@ git push
 ```
 
 After that, the PR merge button should work.
+
+
+
+## GitHub remote setup from this environment
+
+Remote is configured to:
+
+```bash
+git remote add origin https://github.com/martyx988/Pokus.git
+```
+
+Notes:
+- SSH to GitHub (`git@github.com`) may be blocked in this environment.
+- Pushing over HTTPS requires credentials (PAT or credential helper).
+
+Example force-update once credentials are available:
+
+```bash
+git push --force-with-lease origin master
+```
+
