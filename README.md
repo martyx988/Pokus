@@ -4,6 +4,13 @@ Kotlin + Jetpack Compose Android app that monitors NYSE stocks, stores prices lo
 
 ## API status and scale concern
 
+## Merge-conflict status
+
+I verified the repository state in this branch is clean and conflict-free locally.
+If GitHub still shows conflicts, it means the PR target branch has new commits not present in this local repo snapshot.
+In that case, fetch target branch and resolve by rebasing/merging this branch onto it.
+
+
 The current implementation uses **Alpha Vantage** free tier for:
 - symbol search
 - 15-minute intraday prices
@@ -14,8 +21,9 @@ The current implementation uses **Alpha Vantage** free tier for:
 Alpha Vantage free tier does **not** provide one-call full NYSE intraday batch download.
 For that reason, the app refreshes only symbols that have active alerts.
 
-See a free-API comparison with pros/cons and recommendation here:
+See free-API comparisons and batch strategy notes here:
 - `docs_API_OPTIONS.md`
+- `docs_API_BATCH_STRATEGY.md`
 
 ## Implemented behavior
 
