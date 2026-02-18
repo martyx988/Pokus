@@ -5,3 +5,7 @@
 **/build/
 *.iml
 gradle/wrapper/gradle-wrapper.jar
+
+# Generated local datasets
+/artifacts/
+/app/src/main/assets/bootstrap/nyse_daily_prices_room.csv
