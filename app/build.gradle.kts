@@ -15,8 +15,10 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        val apiKey = project.findProperty("ALPHA_VANTAGE_API_KEY") as String? ?: ""
-        buildConfigField("String", "ALPHA_VANTAGE_API_KEY", "\"$apiKey\"")
+        val alphaApiKey = project.findProperty("ALPHA_VANTAGE_API_KEY") as String? ?: ""
+        val twelveApiKey = project.findProperty("TWELVE_DATA_API_KEY") as String? ?: ""
+        buildConfigField("String", "ALPHA_VANTAGE_API_KEY", "\"$alphaApiKey\"")
+        buildConfigField("String", "TWELVE_DATA_API_KEY", "\"$twelveApiKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

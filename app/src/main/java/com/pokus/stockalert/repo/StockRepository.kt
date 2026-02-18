@@ -11,6 +11,7 @@ import com.pokus.stockalert.db.AlertDao
 import com.pokus.stockalert.db.PriceDao
 import com.pokus.stockalert.db.StockDao
 import com.pokus.stockalert.network.AlphaVantageService
+import com.pokus.stockalert.network.TwelveDataService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,31 +19,79 @@ import java.io.IOException
 import java.time.LocalDate
 
 class StockRepository(
-    private val api: AlphaVantageService,
+    private val twelveApi: TwelveDataService,
+    private val alphaApi: AlphaVantageService,
     private val stockDao: StockDao,
     private val priceDao: PriceDao,
     private val alertDao: AlertDao
 ) {
-    private val key: String get() = BuildConfig.ALPHA_VANTAGE_API_KEY
+    private val alphaKey: String get() = BuildConfig.ALPHA_VANTAGE_API_KEY
+    private val twelveKey: String get() = BuildConfig.TWELVE_DATA_API_KEY
 
     fun searchLocal(query: String): Flow<List<StockEntity>> = stockDao.searchStocks(query)
 
     suspend fun refreshSearch(query: String) {
-        if (key.isBlank() || query.isBlank()) return
-        val response = retryApi { api.searchSymbols(query, key) } ?: return
-        val stocks = response.bestMatches.mapNotNull { row ->
-            val exchange = row["4. region"] ?: return@mapNotNull null
-            val name = row["2. name"] ?: return@mapNotNull null
-            val symbol = row["1. symbol"] ?: return@mapNotNull null
-            if (!exchange.contains("United States", ignoreCase = true)) return@mapNotNull null
-            StockEntity(symbol = symbol, name = name, exchange = exchange, updatedAtEpochMs = System.currentTimeMillis())
+        if (query.isBlank()) return
+
+        val twelveStocks = if (twelveKey.isNotBlank()) {
+            retryApi {
+                twelveApi.searchSymbols(query, twelveKey)
+            }?.data?.mapNotNull { row ->
+                val exchange = row.exchange ?: return@mapNotNull null
+                val symbol = row.symbol
+                val name = row.name ?: symbol
+                if (!exchange.contains("NYSE", ignoreCase = true) && !exchange.contains("United States", ignoreCase = true)) return@mapNotNull null
+                StockEntity(symbol = symbol, name = name, exchange = exchange, updatedAtEpochMs = System.currentTimeMillis())
+            }
+        } else {
+            emptyList()
         }
-        if (stocks.isNotEmpty()) stockDao.upsertStocks(stocks)
+
+        val result = if (!twelveStocks.isNullOrEmpty()) {
+            twelveStocks
+        } else {
+            if (alphaKey.isBlank()) emptyList() else {
+                retryApi { alphaApi.searchSymbols(query, alphaKey) }?.bestMatches?.mapNotNull { row ->
+                    val exchange = row["4. region"] ?: return@mapNotNull null
+                    val name = row["2. name"] ?: return@mapNotNull null
+                    val symbol = row["1. symbol"] ?: return@mapNotNull null
+                    if (!exchange.contains("United States", ignoreCase = true)) return@mapNotNull null
+                    StockEntity(symbol = symbol, name = name, exchange = exchange, updatedAtEpochMs = System.currentTimeMillis())
+                } ?: emptyList()
+            }
+        }
+
+        if (result.isNotEmpty()) stockDao.upsertStocks(result)
     }
 
     suspend fun refreshIntraday(symbol: String) {
-        if (key.isBlank()) return
-        val body = retryApi { api.intraday(symbol, key) } ?: return
+        val twelveWorked = if (twelveKey.isNotBlank()) {
+            val response = retryApi { twelveApi.timeSeries(symbol, "15min", twelveKey, outputSize = 200) }
+            val values = response?.values
+            if (!values.isNullOrEmpty()) {
+                val points = values.mapNotNull { valuesRow ->
+                    val timestamp = valuesRow["datetime"] ?: return@mapNotNull null
+                    IntradayPriceEntity(
+                        symbol = symbol,
+                        timestamp = timestamp,
+                        tradingDate = timestamp.take(10),
+                        open = valuesRow["open"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        high = valuesRow["high"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        low = valuesRow["low"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        close = valuesRow["close"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        volume = valuesRow["volume"]?.toLongOrNull() ?: 0L
+                    )
+                }
+                if (points.isNotEmpty()) {
+                    priceDao.upsertIntraday(points)
+                    true
+                } else false
+            } else false
+        } else false
+
+        if (twelveWorked) return
+        if (alphaKey.isBlank()) return
+        val body = retryApi { alphaApi.intraday(symbol, alphaKey) } ?: return
         val series = body["Time Series (15min)"] as? Map<*, *> ?: return
         val points = series.mapNotNull { (ts, valuesAny) ->
             val timestamp = ts.toString()
@@ -58,12 +107,36 @@ class StockRepository(
                 volume = values["5. volume"].toString().toLongOrNull() ?: 0L
             )
         }
-        priceDao.upsertIntraday(points)
+        if (points.isNotEmpty()) priceDao.upsertIntraday(points)
     }
 
     suspend fun refreshDaily(symbol: String) {
-        if (key.isBlank()) return
-        val body = retryApi { api.daily(symbol, key) } ?: return
+        val twelveWorked = if (twelveKey.isNotBlank()) {
+            val response = retryApi { twelveApi.timeSeries(symbol, "1day", twelveKey, outputSize = 3000) }
+            val values = response?.values
+            if (!values.isNullOrEmpty()) {
+                val points = values.mapNotNull { valuesRow ->
+                    val date = valuesRow["datetime"] ?: return@mapNotNull null
+                    DailyPriceEntity(
+                        symbol = symbol,
+                        date = date.take(10),
+                        open = valuesRow["open"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        high = valuesRow["high"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        low = valuesRow["low"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        close = valuesRow["close"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                        volume = valuesRow["volume"]?.toLongOrNull() ?: 0L
+                    )
+                }
+                if (points.isNotEmpty()) {
+                    priceDao.upsertDaily(points)
+                    true
+                } else false
+            } else false
+        } else false
+
+        if (twelveWorked) return
+        if (alphaKey.isBlank()) return
+        val body = retryApi { alphaApi.daily(symbol, alphaKey) } ?: return
         val series = body["Time Series (Daily)"] as? Map<*, *> ?: return
         val points = series.mapNotNull { (date, valuesAny) ->
             val values = valuesAny as? Map<*, *> ?: return@mapNotNull null
@@ -77,7 +150,7 @@ class StockRepository(
                 volume = values["6. volume"].toString().toLongOrNull() ?: 0L
             )
         }
-        priceDao.upsertDaily(points)
+        if (points.isNotEmpty()) priceDao.upsertDaily(points)
     }
 
     suspend fun applyRetention(today: LocalDate) {

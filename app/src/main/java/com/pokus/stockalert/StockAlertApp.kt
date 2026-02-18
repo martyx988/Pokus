@@ -25,7 +25,8 @@ class StockAlertApp : Application() {
         val db = Room.databaseBuilder(this, AppDatabase::class.java, "stock-alert-db").build()
         container = AppContainer(
             repo = StockRepository(
-                api = NetworkModule.api,
+                twelveApi = NetworkModule.twelveDataApi,
+                alphaApi = NetworkModule.alphaVantageApi,
                 stockDao = db.stockDao(),
                 priceDao = db.priceDao(),
                 alertDao = db.alertDao()

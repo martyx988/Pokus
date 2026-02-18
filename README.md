@@ -11,7 +11,7 @@ If GitHub still shows conflicts, it means the PR target branch has new commits n
 In that case, fetch target branch and resolve by rebasing/merging this branch onto it.
 
 
-The current implementation uses **Alpha Vantage** free tier for:
+The current implementation now uses **Twelve Data as primary** and **Alpha Vantage as fallback** for:
 - symbol search
 - 15-minute intraday prices
 - full daily historical prices
@@ -62,7 +62,8 @@ Before first build in a fresh container/machine, run:
 
 
 ```properties
-ALPHA_VANTAGE_API_KEY=your_key_here
+TWELVE_DATA_API_KEY=your_key_here
+ALPHA_VANTAGE_API_KEY=optional_fallback_key
 sdk.dir=/absolute/path/to/android/sdk
 ```
 
@@ -110,7 +111,6 @@ git push
 After that, the PR merge button should work.
 
 
-
 ## GitHub remote setup from this environment
 
 Remote is configured to:
@@ -128,4 +128,3 @@ Example force-update once credentials are available:
 ```bash
 git push --force-with-lease origin master
 ```
-

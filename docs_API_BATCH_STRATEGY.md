@@ -61,3 +61,10 @@ For free-first MVP:
 
 For production-scale broad NYSE scanning:
 - plan for paid market data or backend aggregation.
+
+
+## Decision adopted in app
+
+Current implementation is aligned with this strategy:
+- Primary provider: Twelve Data
+- Fallback provider: Alpha Vantage

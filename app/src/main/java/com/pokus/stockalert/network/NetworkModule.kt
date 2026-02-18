@@ -10,10 +10,17 @@ object NetworkModule {
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
         .build()
 
-    val api: AlphaVantageService = Retrofit.Builder()
+    val alphaVantageApi: AlphaVantageService = Retrofit.Builder()
         .baseUrl("https://www.alphavantage.co/")
         .client(httpClient)
         .addConverterFactory(MoshiConverterFactory.create())
         .build()
         .create(AlphaVantageService::class.java)
+
+    val twelveDataApi: TwelveDataService = Retrofit.Builder()
+        .baseUrl("https://api.twelvedata.com/")
+        .client(httpClient)
+        .addConverterFactory(MoshiConverterFactory.create())
+        .build()
+        .create(TwelveDataService::class.java)
 }
