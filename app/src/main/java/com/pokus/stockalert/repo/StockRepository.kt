@@ -129,14 +129,18 @@ class StockRepository(
 
         val lines = mutableListOf<String>()
         for (symbol in symbols) {
-            val todayOk = refreshTodayOpeningAndRecentDaily(symbol)
-            val dailyOk = refreshDailyCompact(symbol)
+            val todayStatus = if (refreshTodayOpeningAndRecentDaily(symbol)) "ok" else "fail"
+            var dailyStatus = refreshDailyCompact(symbol)
+            if (dailyStatus == "throttled") {
+                delay(15_000L)
+                dailyStatus = refreshDailyCompact(symbol)
+            }
 
             val latest = latestDaily(symbol)
             val previous = latest?.let { previousDailyBefore(symbol, it.date) }
             val points = (if (latest != null) 1 else 0) + (if (previous != null) 1 else 0)
 
-            lines += "$symbol: todayApi=${if (todayOk) "ok" else "fail"}, dailyApi=${if (dailyOk) "ok" else "fail"}, latest=${latest?.date ?: "-"}, previous=${previous?.date ?: "-"}, points=$points"
+            lines += "$symbol: todayApi=$todayStatus, dailyApi=$dailyStatus, latest=${latest?.date ?: "-"}, previous=${previous?.date ?: "-"}, points=$points"
         }
 
         return lines.joinToString("\n")
@@ -333,10 +337,15 @@ class StockRepository(
         return false
     }
 
-    suspend fun refreshDailyCompact(symbol: String): Boolean {
-        if (alphaKey.isBlank()) return false
-        val body = retryApi { alphaApi.dailyCompact(symbol, alphaKey) } ?: return false
-        val series = body["Time Series (Daily)"] as? Map<*, *> ?: return false
+    suspend fun refreshDailyCompact(symbol: String): String {
+        if (alphaKey.isBlank()) return "no-key"
+        val body = retryApi { alphaApi.dailyCompact(symbol, alphaKey) } ?: return "network-fail"
+
+        val note = body["Note"]?.toString() ?: body["Information"]?.toString()
+        if (!note.isNullOrBlank()) return "throttled"
+        if (body["Error Message"] != null) return "error"
+
+        val series = body["Time Series (Daily)"] as? Map<*, *> ?: return "no-series"
         val points = series.mapNotNull { (date, valuesAny) ->
             val values = valuesAny as? Map<*, *> ?: return@mapNotNull null
             DailyPriceEntity(
@@ -349,9 +358,12 @@ class StockRepository(
                 volume = values["5. volume"].toString().toLongOrNull() ?: 0L
             )
         }
-        if (points.isEmpty()) return false
+            .sortedByDescending { it.date }
+            .take(2)
+
+        if (points.isEmpty()) return "no-data"
         priceDao.upsertDaily(points)
-        return true
+        return "ok"
     }
 
     suspend fun applyRetention(today: LocalDate) {
