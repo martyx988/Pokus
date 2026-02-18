@@ -74,7 +74,9 @@ data class AppState(
     val searchResults: List<StockEntity> = emptyList(),
     val intraday: List<PricePoint> = emptyList(),
     val daily: List<PricePoint> = emptyList(),
-    val alerts: List<AlertEntity> = emptyList()
+    val alerts: List<AlertEntity> = emptyList(),
+    val developerLoading: Boolean = false,
+    val developerStatus: String = ""
 )
 
 class MainViewModel(private val repo: StockRepository) : ViewModel() {
@@ -96,6 +98,7 @@ class MainViewModel(private val repo: StockRepository) : ViewModel() {
     fun loadSymbol(symbol: String) {
         viewModelScope.launch {
             repo.refreshIntraday(symbol)
+            repo.refreshTodayOpeningAndRecentDaily(symbol)
             repo.refreshDaily(symbol)
             val today = LocalDate.now().toString()
             launch { repo.observeIntraday(symbol, today).collect { _state.update { s -> s.copy(intraday = it) } } }
@@ -111,6 +114,16 @@ class MainViewModel(private val repo: StockRepository) : ViewModel() {
     fun deleteAlert(alertId: Long) {
         viewModelScope.launch { repo.deleteAlert(alertId) }
     }
+
+
+    fun runDeveloperManualApiTest() {
+        _state.update { it.copy(developerLoading = true, developerStatus = "Running API test for AAPL/MSFT...") }
+        viewModelScope.launch {
+            val result = repo.developerManualApiLoadForAppleMicrosoft()
+            _state.update { it.copy(developerLoading = false, developerStatus = result) }
+        }
+    }
+
 }
 
 class VMFactory(private val repo: StockRepository) : ViewModelProvider.Factory {
@@ -151,7 +164,8 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
                 state = state,
                 onQuery = vm::onQueryChanged,
                 onOpen = { symbol -> nav.navigate("detail/$symbol") },
-                onAttribution = { nav.navigate("attribution") }
+                onAttribution = { nav.navigate("attribution") },
+                onDeveloper = { nav.navigate("developer") }
             )
         }
         composable("detail/{symbol}") { backStack ->
@@ -167,6 +181,15 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
         }
         composable("attribution") {
             AttributionScreen(onBack = { nav.popBackStack() })
+
+        }
+        composable("developer") {
+            DeveloperSettingsScreen(
+                state = state,
+                onBack = { nav.popBackStack() },
+                onRunManualApiLoad = { vm.runDeveloperManualApiTest() }
+            )
+
         }
     }
 }
@@ -176,12 +199,16 @@ fun SearchScreen(
     state: AppState,
     onQuery: (String) -> Unit,
     onOpen: (String) -> Unit,
-    onAttribution: () -> Unit
+    onAttribution: () -> Unit,
+    onDeveloper: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("NYSE Stock Monitor", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Button(onClick = onAttribution) { Text("Attribution") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onDeveloper) { Text("Developer") }
+                Button(onClick = onAttribution) { Text("Attribution") }
+            }
         }
 
         OutlinedTextField(
@@ -221,7 +248,9 @@ fun DetailScreen(
     var deleteOnTrigger by remember { mutableStateOf(true) }
 
     val points = when (mode) {
-        ChartMode.D1 -> state.intraday
+
+        ChartMode.D1 -> if (state.intraday.size >= 2) state.intraday else state.daily.takeLast(2)
+
         ChartMode.W1 -> state.daily.takeLast(5)
         ChartMode.M1 -> state.daily.takeLast(22)
         ChartMode.Y1 -> state.daily.takeLast(252)
@@ -375,6 +404,41 @@ fun DetailScreen(
 }
 
 @Composable
+
+fun DeveloperSettingsScreen(
+    state: AppState,
+    onBack: () -> Unit,
+    onRunManualApiLoad: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("Back") }
+            Text("Developer settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+
+        Text("Manual API test: load today's/recent daily prices for AAPL and MSFT into database.")
+
+        Button(
+            onClick = onRunManualApiLoad,
+            enabled = !state.developerLoading
+        ) {
+            Text(if (state.developerLoading) "Running..." else "Run manual API load (AAPL + MSFT)")
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = if (state.developerStatus.isBlank()) "No test run yet." else state.developerStatus,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+
 fun AttributionScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("Back") }
