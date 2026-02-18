@@ -31,4 +31,10 @@ interface AlphaVantageService {
         @Query("symbol") symbol: String,
         @Query("apikey") apiKey: String
     ): Map<String, Any>
+
+    @GET("query?function=TIME_SERIES_DAILY&outputsize=compact")
+    suspend fun dailyCompact(
+        @Query("symbol") symbol: String,
+        @Query("apikey") apiKey: String
+    ): Map<String, Any>
 }
