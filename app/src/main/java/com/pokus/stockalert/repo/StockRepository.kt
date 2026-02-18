@@ -53,6 +53,7 @@ class StockRepository(
     }
 
     suspend fun refreshNyseTickers(limit: Int? = null): Int {
+
         val text = try {
             withContext(Dispatchers.IO) {
                 URL("https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt").readText()
@@ -60,6 +61,7 @@ class StockRepository(
         } catch (_: Exception) {
             return 0
         }
+
         val rows = parseNyseTickerRows(text, limit)
         val now = System.currentTimeMillis()
         val entities = rows.map {
@@ -95,7 +97,9 @@ class StockRepository(
     }
 
     private suspend fun loadWeeklyForSymbol(symbol: String): Boolean {
+
         if (twelveKey.isBlank()) return false
+
         val response = retryApi { twelveApi.timeSeries(symbol, "1day", twelveKey, outputSize = 7) } ?: return false
         val values = response.values ?: return false
         val historical = values.mapNotNull { row ->
