@@ -54,6 +54,13 @@ See free-API comparisons and batch strategy notes here:
 
 Create `local.properties` with:
 
+Before first build in a fresh container/machine, run:
+
+```bash
+./scripts/setup-android-sdk.sh
+```
+
+
 ```properties
 ALPHA_VANTAGE_API_KEY=your_key_here
 sdk.dir=/absolute/path/to/android/sdk
@@ -83,3 +90,21 @@ gradle wrapper --gradle-version 8.10.2
 ```
 
 (Requires local Gradle installation.)
+
+
+## Merge to master (conflict workflow)
+
+If GitHub says this branch conflicts with `master`, it means `master` has commits not present locally in this branch. Resolve with:
+
+```bash
+git checkout master
+git pull
+git checkout work
+git merge master
+# resolve conflicts, then:
+git add .
+git commit
+git push
+```
+
+After that, the PR merge button should work.
