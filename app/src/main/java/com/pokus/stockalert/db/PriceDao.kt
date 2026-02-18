@@ -4,49 +4,42 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.pokus.stockalert.data.DailyPriceEntity
-import com.pokus.stockalert.data.IntradayPriceEntity
+import com.pokus.stockalert.data.DailyOpeningPriceEntity
+import com.pokus.stockalert.data.HistoricalPriceEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PriceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertDaily(prices: List<DailyPriceEntity>)
+    suspend fun upsertHistorical(prices: List<HistoricalPriceEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertIntraday(prices: List<IntradayPriceEntity>)
+    suspend fun upsertDailyOpenings(prices: List<DailyOpeningPriceEntity>)
 
-    @Query("SELECT * FROM daily_prices WHERE symbol = :symbol ORDER BY date ASC")
-    fun observeDaily(symbol: String): Flow<List<DailyPriceEntity>>
+    @Query("SELECT * FROM historical_prices WHERE symbol = :symbol ORDER BY date ASC")
+    fun observeHistorical(symbol: String): Flow<List<HistoricalPriceEntity>>
 
-    @Query("SELECT * FROM intraday_prices WHERE symbol = :symbol AND tradingDate = :tradingDate ORDER BY timestamp ASC")
-    fun observeIntradayForDate(symbol: String, tradingDate: String): Flow<List<IntradayPriceEntity>>
+    @Query("SELECT * FROM daily_opening_prices WHERE symbol = :symbol ORDER BY date DESC LIMIT 1")
+    suspend fun latestDailyOpening(symbol: String): DailyOpeningPriceEntity?
 
-    @Query("SELECT * FROM intraday_prices WHERE symbol = :symbol ORDER BY timestamp DESC LIMIT 1")
-    suspend fun latestIntraday(symbol: String): IntradayPriceEntity?
+    @Query("SELECT * FROM daily_opening_prices WHERE symbol = :symbol ORDER BY date DESC LIMIT 1 OFFSET 1")
+    suspend fun previousDailyOpening(symbol: String): DailyOpeningPriceEntity?
 
-    @Query("SELECT * FROM intraday_prices WHERE symbol = :symbol ORDER BY timestamp DESC LIMIT 1 OFFSET 1")
-    suspend fun previousIntraday(symbol: String): IntradayPriceEntity?
+    @Query("SELECT * FROM historical_prices WHERE symbol = :symbol ORDER BY date DESC LIMIT 1")
+    suspend fun latestHistorical(symbol: String): HistoricalPriceEntity?
 
-    @Query("SELECT * FROM daily_prices WHERE symbol = :symbol ORDER BY date DESC LIMIT 1")
-    suspend fun latestDaily(symbol: String): DailyPriceEntity?
+    @Query("SELECT * FROM historical_prices WHERE symbol = :symbol AND date < :date ORDER BY date DESC LIMIT 1")
+    suspend fun previousHistoricalBefore(symbol: String, date: String): HistoricalPriceEntity?
 
-    @Query("SELECT * FROM daily_prices WHERE symbol = :symbol AND date < :date ORDER BY date DESC LIMIT 1")
-    suspend fun previousDailyBefore(symbol: String, date: String): DailyPriceEntity?
+    @Query("DELETE FROM daily_opening_prices WHERE date < :minDate")
+    suspend fun trimOpeningsBefore(minDate: String)
 
-    @Query("DELETE FROM intraday_prices WHERE tradingDate != :tradingDate")
-    suspend fun clearIntradayOutsideDate(tradingDate: String)
+    @Query("DELETE FROM historical_prices WHERE date < :minDate")
+    suspend fun trimHistoricalBefore(minDate: String)
 
-    @Query("DELETE FROM daily_prices WHERE date < :minDate")
-    suspend fun trimDailyBefore(minDate: String)
+    @Query("SELECT t.symbol FROM tickers t LEFT JOIN historical_prices h ON h.symbol = t.symbol WHERE h.symbol IS NULL ORDER BY t.symbol LIMIT :limit")
+    suspend fun symbolsWithoutHistorical(limit: Int): List<String>
 
-    @Query("SELECT s.symbol FROM stocks s LEFT JOIN daily_prices d ON d.symbol = s.symbol WHERE d.symbol IS NULL ORDER BY s.symbol LIMIT :limit")
-    suspend fun symbolsWithoutDaily(limit: Int): List<String>
-
-    @Query("SELECT COUNT(*) FROM stocks s LEFT JOIN daily_prices d ON d.symbol = s.symbol WHERE d.symbol IS NULL")
-    suspend fun countSymbolsWithoutDaily(): Int
-
-    @Query("SELECT COUNT(*) FROM daily_prices")
-    suspend fun countDailyRows(): Int
-
+    @Query("SELECT COUNT(*) FROM tickers t LEFT JOIN historical_prices h ON h.symbol = t.symbol WHERE h.symbol IS NULL")
+    suspend fun countSymbolsWithoutHistorical(): Int
 }
