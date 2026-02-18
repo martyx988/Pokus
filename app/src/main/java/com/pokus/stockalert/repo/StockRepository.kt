@@ -1,5 +1,6 @@
 package com.pokus.stockalert.repo
 
+
 import com.pokus.stockalert.BuildConfig
 import com.pokus.stockalert.data.AlertEntity
 import com.pokus.stockalert.data.AlertType
@@ -10,16 +11,21 @@ import com.pokus.stockalert.data.TickerEntity
 import com.pokus.stockalert.db.AlertDao
 import com.pokus.stockalert.db.PriceDao
 import com.pokus.stockalert.db.StockDao
-import com.pokus.stockalert.network.AlphaVantageService
-import com.pokus.stockalert.network.TwelveDataService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 import java.io.IOException
 import java.net.URL
+import java.time.Instant
+
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 data class NyseBootstrapResult(
     val insertedSymbols: Int,
@@ -34,14 +40,15 @@ data class TickerSeedRow(
 )
 
 class StockRepository(
-    private val twelveApi: TwelveDataService,
-    private val alphaApi: AlphaVantageService,
     private val stockDao: StockDao,
     private val priceDao: PriceDao,
     private val alertDao: AlertDao
 ) {
-    private val alphaKey: String get() = BuildConfig.ALPHA_VANTAGE_API_KEY
-    private val twelveKey: String get() = BuildConfig.TWELVE_DATA_API_KEY
+    private enum class LoadStatus {
+        SUCCESS,
+        NO_DATA,
+        ERROR
+    }
 
     fun searchLocal(query: String): Flow<List<TickerEntity>> = stockDao.searchTickers(query)
 
@@ -63,6 +70,8 @@ class StockRepository(
         }
 
         val rows = parseNyseTickerRows(text, limit)
+        if (rows.isEmpty()) return 0
+
         val now = System.currentTimeMillis()
         val entities = rows.map {
             TickerEntity(
@@ -73,48 +82,76 @@ class StockRepository(
                 updatedAtEpochMs = now
             )
         }
-        if (entities.isEmpty()) return 0
+
         stockDao.upsertTickers(entities)
         return entities.size
     }
 
-    suspend fun developerLoadLastWeekPricesForAllTickers(batchSize: Int = 50): String {
+
+    suspend fun developerLoadLastWeekPricesForAllTickers(
+        maxSymbolsPerRun: Int = 300,
+        perSymbolTimeoutMs: Long = 15_000L
+    ): String {
+
         if (stockDao.countTickers() == 0) refreshNyseTickers()
 
         val symbols = stockDao.allSymbols()
         if (symbols.isEmpty()) return "No tickers available."
 
+
+        val targets = symbols.take(maxSymbolsPerRun)
         var ok = 0
         var failed = 0
-        symbols.chunked(batchSize).forEach { batch ->
-            for (symbol in batch) {
-                val loaded = loadWeeklyForSymbol(symbol)
-                if (loaded) ok++ else failed++
-                delay(150L)
-            }
+        for (symbol in targets) {
+            val loaded = withTimeoutOrNull(perSymbolTimeoutMs) {
+                loadWeeklyForSymbolDetailed(symbol)
+            } ?: LoadStatus.ERROR
+
+            if (loaded == LoadStatus.SUCCESS) ok++ else failed++
+            delay(60L)
         }
-        return "Loaded last-week prices for $ok tickers. Failed: $failed"
+
+        val suffix = if (symbols.size > targets.size) {
+            " Processed first ${targets.size}/${symbols.size} tickers to keep developer load bounded."
+        } else {
+            ""
+        }
+        return "Loaded last-week prices for $ok tickers. Failed: $failed.$suffix"
     }
 
     private suspend fun loadWeeklyForSymbol(symbol: String): Boolean {
+        return loadWeeklyForSymbolDetailed(symbol) == LoadStatus.SUCCESS
+    }
 
-        if (twelveKey.isBlank()) return false
+    private suspend fun loadWeeklyForSymbolDetailed(symbol: String): LoadStatus {
+        val rows = fetchYahooHistorical(symbol)
+        if (rows.isEmpty()) return LoadStatus.NO_DATA
 
-        val response = retryApi { twelveApi.timeSeries(symbol, "1day", twelveKey, outputSize = 7) } ?: return false
-        val values = response.values ?: return false
-        val historical = values.mapNotNull { row ->
-            val date = row["datetime"]?.take(10) ?: return@mapNotNull null
-            val open = row["open"]?.toDoubleOrNull() ?: return@mapNotNull null
-            val high = row["high"]?.toDoubleOrNull() ?: return@mapNotNull null
-            val low = row["low"]?.toDoubleOrNull() ?: return@mapNotNull null
-            val close = row["close"]?.toDoubleOrNull() ?: return@mapNotNull null
-            val volume = row["volume"]?.toLongOrNull() ?: 0L
-            HistoricalPriceEntity(symbol, date, open, high, low, close, volume)
-        }
-        if (historical.isEmpty()) return false
-        priceDao.upsertHistorical(historical)
-        priceDao.upsertDailyOpenings(historical.map { DailyOpeningPriceEntity(it.symbol, it.date, it.open, it.provider) })
-        return true
+        priceDao.upsertHistorical(rows)
+        val latest = rows.maxByOrNull { it.date } ?: return LoadStatus.NO_DATA
+        priceDao.upsertDailyOpenings(
+            listOf(
+                DailyOpeningPriceEntity(
+                    symbol = latest.symbol,
+                    date = latest.date,
+                    open = latest.open,
+                    provider = latest.provider
+                )
+            )
+        )
+        return LoadStatus.SUCCESS
+    }
+
+    private suspend fun fetchYahooHistorical(symbol: String): List<HistoricalPriceEntity> {
+        val url = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?range=1mo&interval=1d&events=history&includeAdjustedClose=true"
+        val body = retryApi {
+            withContext(Dispatchers.IO) { URL(url).readText() }
+        } ?: return emptyList()
+
+        return parseYahooChartRows(body, symbol)
+            .sortedBy { it.date }
+            .takeLast(7)
+
     }
 
     suspend fun populateNyseUniverseAndDailyHistory(
@@ -125,8 +162,10 @@ class StockRepository(
         val inserted = refreshNyseTickers()
         val targets = priceDao.symbolsWithoutHistorical(maxSymbolsPerRun)
         var hydrated = 0
-        targets.forEach {
-            if (loadWeeklyForSymbol(it)) hydrated++
+
+        targets.forEach { symbol ->
+            if (loadWeeklyForSymbol(symbol)) hydrated++
+
         }
         return NyseBootstrapResult(inserted, hydrated, priceDao.countSymbolsWithoutHistorical())
     }
@@ -173,9 +212,15 @@ class StockRepository(
         HistoricalPriceEntity(symbol, it.date, it.open, it.open, it.open, it.open, 0L, it.provider)
     }
 
+
     suspend fun previousIntraday(symbol: String) = priceDao.previousDailyOpening(symbol)?.let {
         HistoricalPriceEntity(symbol, it.date, it.open, it.open, it.open, it.open, 0L, it.provider)
     }
+
+    suspend fun latestDaily(symbol: String) = priceDao.latestHistorical(symbol)
+
+    suspend fun previousDailyBefore(symbol: String, date: String) = priceDao.previousHistoricalBefore(symbol, date)
+
 
     suspend fun latestDaily(symbol: String) = priceDao.latestHistorical(symbol)
     suspend fun previousDailyBefore(symbol: String, date: String) = priceDao.previousHistoricalBefore(symbol, date)
@@ -239,5 +284,68 @@ class StockRepository(
             }
             return out.distinctBy { it.symbol }.sortedBy { it.symbol }
         }
+
+
+        fun parseYahooChartRows(rawJson: String, symbol: String): List<HistoricalPriceEntity> {
+            val root = JSONObject(rawJson)
+            val chart = root.optJSONObject("chart") ?: return emptyList()
+            val resultArray = chart.optJSONArray("result") ?: return emptyList()
+            if (resultArray.length() == 0) return emptyList()
+
+            val result = resultArray.optJSONObject(0) ?: return emptyList()
+            val timestamps = result.optJSONArray("timestamp") ?: return emptyList()
+            val indicators = result.optJSONObject("indicators") ?: return emptyList()
+            val quote = indicators.optJSONArray("quote")?.optJSONObject(0) ?: return emptyList()
+
+            val opens = quote.optJSONArray("open") ?: return emptyList()
+            val highs = quote.optJSONArray("high") ?: return emptyList()
+            val lows = quote.optJSONArray("low") ?: return emptyList()
+            val closes = quote.optJSONArray("close") ?: return emptyList()
+            val volumes = quote.optJSONArray("volume") ?: return emptyList()
+
+            val count = listOf(
+                timestamps.length(),
+                opens.length(),
+                highs.length(),
+                lows.length(),
+                closes.length(),
+                volumes.length()
+            ).minOrNull() ?: 0
+
+            val out = mutableListOf<HistoricalPriceEntity>()
+            for (i in 0 until count) {
+                if (timestamps.isNull(i) || opens.isNull(i) || highs.isNull(i) || lows.isNull(i) || closes.isNull(i) || volumes.isNull(i)) {
+                    continue
+                }
+
+                val epoch = timestamps.optLong(i, Long.MIN_VALUE)
+                if (epoch == Long.MIN_VALUE) continue
+
+                val open = opens.optDouble(i, Double.NaN)
+                val high = highs.optDouble(i, Double.NaN)
+                val low = lows.optDouble(i, Double.NaN)
+                val close = closes.optDouble(i, Double.NaN)
+                if (open.isNaN() || high.isNaN() || low.isNaN() || close.isNaN()) continue
+
+                val volume = volumes.optLong(i, 0L)
+                val date = Instant.ofEpochSecond(epoch).atZone(ZoneOffset.UTC).toLocalDate().toString()
+
+                out += HistoricalPriceEntity(
+                    symbol = symbol,
+                    date = date,
+                    open = open,
+                    high = high,
+                    low = low,
+                    close = close,
+                    volume = volume,
+                    provider = "yfinance"
+                )
+            }
+
+            return out
+                .distinctBy { it.date }
+                .sortedBy { it.date }
+        }
+
     }
 }

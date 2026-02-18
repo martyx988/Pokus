@@ -116,7 +116,9 @@ class MainViewModel(private val repo: StockRepository) : ViewModel() {
     }
 
     fun runDeveloperLoadLastWeekPrices() {
-        _state.update { it.copy(developerLoading = true, developerStatus = "Loading last-week prices for all tickers...") }
+
+        _state.update { it.copy(developerLoading = true, developerStatus = "Loading last-week prices for ticker set (bounded run)...") }
+
         viewModelScope.launch {
             try {
                 val result = repo.developerLoadLastWeekPricesForAllTickers()
@@ -417,13 +419,18 @@ fun DeveloperSettingsScreen(
             Text("Developer settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
 
-        Text("Load all NYSE ticker prices for the last week into historical and opening tables.")
+
+        Text("Load NYSE ticker prices for the last week into historical/opening tables.
+Run is bounded to avoid extremely long/unresponsive developer jobs.")
+
 
         Button(
             onClick = onRunManualApiLoad,
             enabled = !state.developerLoading
         ) {
-            Text(if (state.developerLoading) "Running..." else "Load last-week prices for all tickers")
+
+            Text(if (state.developerLoading) "Running..." else "Load last-week prices (developer run)")
+
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {

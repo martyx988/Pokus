@@ -34,4 +34,40 @@ class StockRepositoryParsingTest {
         assertEquals("ETC", result.first { it.symbol == "GLD" }.securityType)
         assertTrue(result.none { it.symbol == "BRK.B" })
     }
+
+
+    @Test
+    fun parseYahooChartRows_mapsToHistoricalFormat() {
+        val raw = """
+            {
+              "chart": {
+                "result": [
+                  {
+                    "timestamp": [1704067200, 1704153600],
+                    "indicators": {
+                      "quote": [
+                        {
+                          "open": [100.5, 101.0],
+                          "high": [110.0, 111.0],
+                          "low": [99.0, 100.0],
+                          "close": [109.5, 110.0],
+                          "volume": [1000, 2000]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val rows = StockRepository.parseYahooChartRows(raw, "MSFT")
+
+        assertEquals(2, rows.size)
+        assertEquals("MSFT", rows.first().symbol)
+        assertEquals("yfinance", rows.first().provider)
+        assertEquals(100.5, rows.first().open, 0.0001)
+        assertEquals(109.5, rows.first().close, 0.0001)
+    }
+
 }

@@ -10,7 +10,6 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.pokus.stockalert.alerts.NotificationHelper
 import com.pokus.stockalert.db.AppDatabase
-import com.pokus.stockalert.network.NetworkModule
 import com.pokus.stockalert.repo.StockRepository
 import com.pokus.stockalert.worker.PriceRefreshWorker
 import java.util.concurrent.TimeUnit
@@ -27,8 +26,6 @@ class StockAlertApp : Application() {
             .build()
         container = AppContainer(
             repo = StockRepository(
-                twelveApi = NetworkModule.twelveDataApi,
-                alphaApi = NetworkModule.alphaVantageApi,
                 stockDao = db.stockDao(),
                 priceDao = db.priceDao(),
                 alertDao = db.alertDao()
