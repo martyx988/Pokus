@@ -10,13 +10,11 @@ This project uses `DailyPriceEntity` with columns:
 - `close`
 - `volume`
 
-
 ## Committed two-day snapshot (short-term bootstrap)
 
 To avoid huge PRs, this repo includes a small two-day snapshot that can be seeded directly into Room:
 
 - `app/src/main/assets/bootstrap/nyse_daily_snapshot_2016-12-29_2016-12-30.csv`
-
 - columns: `symbol,date,open,high,low,close,volume`
 
 ## Generate full-history file (optional)

@@ -115,15 +115,22 @@ class MainViewModel(private val repo: StockRepository) : ViewModel() {
         viewModelScope.launch { repo.deleteAlert(alertId) }
     }
 
-
     fun runDeveloperManualApiTest() {
         _state.update { it.copy(developerLoading = true, developerStatus = "Running API test for AAPL/MSFT...") }
         viewModelScope.launch {
-            val result = repo.developerManualApiLoadForAppleMicrosoft()
-            _state.update { it.copy(developerLoading = false, developerStatus = result) }
+            try {
+                val result = repo.developerManualApiLoadForAppleMicrosoft()
+                _state.update { it.copy(developerLoading = false, developerStatus = result) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        developerLoading = false,
+                        developerStatus = "Manual API test failed: ${e.message ?: e::class.java.simpleName}"
+                    )
+                }
+            }
         }
     }
-
 }
 
 class VMFactory(private val repo: StockRepository) : ViewModelProvider.Factory {
@@ -181,7 +188,6 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
         }
         composable("attribution") {
             AttributionScreen(onBack = { nav.popBackStack() })
-
         }
         composable("developer") {
             DeveloperSettingsScreen(
@@ -189,7 +195,6 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
                 onBack = { nav.popBackStack() },
                 onRunManualApiLoad = { vm.runDeveloperManualApiTest() }
             )
-
         }
     }
 }
@@ -233,7 +238,6 @@ fun SearchScreen(
 enum class ChartMode { D1, W1, M1, Y1, ALL }
 
 @Composable
-
 fun DetailScreen(
     symbol: String,
     state: AppState,
@@ -243,20 +247,16 @@ fun DetailScreen(
 ) {
     var mode by remember { mutableStateOf(ChartMode.M1) }
     var alertType by remember { mutableStateOf(AlertType.RISES_ABOVE) }
-
     var alertValueText by remember { mutableStateOf("") }
     var deleteOnTrigger by remember { mutableStateOf(true) }
 
     val points = when (mode) {
-
         ChartMode.D1 -> if (state.intraday.size >= 2) state.intraday else state.daily.takeLast(2)
-
         ChartMode.W1 -> state.daily.takeLast(5)
         ChartMode.M1 -> state.daily.takeLast(22)
         ChartMode.Y1 -> state.daily.takeLast(252)
         ChartMode.ALL -> state.daily
     }
-
 
     val latest = points.lastOrNull()?.price ?: 0.0
     val previous = points.dropLast(1).lastOrNull()?.price
@@ -295,7 +295,6 @@ fun DetailScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-
             }
             Text("Today", color = Color(0xFF9AA8C1))
         }
@@ -404,7 +403,6 @@ fun DetailScreen(
 }
 
 @Composable
-
 fun DeveloperSettingsScreen(
     state: AppState,
     onBack: () -> Unit,
@@ -438,7 +436,6 @@ fun DeveloperSettingsScreen(
 }
 
 @Composable
-
 fun AttributionScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("Back") }

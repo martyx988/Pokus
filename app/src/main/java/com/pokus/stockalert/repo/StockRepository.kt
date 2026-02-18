@@ -73,9 +73,7 @@ class StockRepository(
 
     suspend fun preloadDailySnapshotFromAssets(
         context: Context,
-
         assetPath: String = "bootstrap/nyse_daily_snapshot_2016-12-29_2016-12-30.csv"
-
     ): Int {
         if (priceDao.countDailyRows() > 0) return 0
 
@@ -122,7 +120,6 @@ class StockRepository(
         return prices.size
     }
 
-
     suspend fun developerManualApiLoadForAppleMicrosoft(): String {
         val symbols = listOf("AAPL", "MSFT")
         val now = System.currentTimeMillis()
@@ -132,14 +129,14 @@ class StockRepository(
 
         val lines = mutableListOf<String>()
         for (symbol in symbols) {
-            val apiOk = refreshTodayOpeningAndRecentDaily(symbol)
-            if (!apiOk) refreshDaily(symbol)
+            val todayOk = refreshTodayOpeningAndRecentDaily(symbol)
+            val dailyOk = refreshDailyCompact(symbol)
 
             val latest = latestDaily(symbol)
             val previous = latest?.let { previousDailyBefore(symbol, it.date) }
             val points = (if (latest != null) 1 else 0) + (if (previous != null) 1 else 0)
 
-            lines += "$symbol: api=${if (apiOk) "ok" else "fail"}, latest=${latest?.date ?: "-"}, previous=${previous?.date ?: "-"}, points=$points"
+            lines += "$symbol: todayApi=${if (todayOk) "ok" else "fail"}, dailyApi=${if (dailyOk) "ok" else "fail"}, latest=${latest?.date ?: "-"}, previous=${previous?.date ?: "-"}, points=$points"
         }
 
         return lines.joinToString("\n")
@@ -165,7 +162,6 @@ class StockRepository(
         priceDao.upsertDaily(points)
         return true
     }
-
 
     suspend fun populateNyseUniverseAndDailyHistory(
         maxSymbolsPerRun: Int = 25,
@@ -290,7 +286,7 @@ class StockRepository(
         if (points.isNotEmpty()) priceDao.upsertIntraday(points)
     }
 
-    suspend fun refreshDaily(symbol: String) {
+    suspend fun refreshDaily(symbol: String): Boolean {
         val twelveWorked = if (twelveKey.isNotBlank()) {
             val response = retryApi { twelveApi.timeSeries(symbol, "1day", twelveKey, outputSize = 3000) }
             val values = response?.values
@@ -314,10 +310,10 @@ class StockRepository(
             } else false
         } else false
 
-        if (twelveWorked) return
-        if (alphaKey.isBlank()) return
-        val body = retryApi { alphaApi.daily(symbol, alphaKey) } ?: return
-        val series = body["Time Series (Daily)"] as? Map<*, *> ?: return
+        if (twelveWorked) return true
+        if (alphaKey.isBlank()) return false
+        val body = retryApi { alphaApi.daily(symbol, alphaKey) } ?: return false
+        val series = body["Time Series (Daily)"] as? Map<*, *> ?: return false
         val points = series.mapNotNull { (date, valuesAny) ->
             val values = valuesAny as? Map<*, *> ?: return@mapNotNull null
             DailyPriceEntity(
@@ -330,7 +326,32 @@ class StockRepository(
                 volume = values["6. volume"].toString().toLongOrNull() ?: 0L
             )
         }
-        if (points.isNotEmpty()) priceDao.upsertDaily(points)
+        if (points.isNotEmpty()) {
+            priceDao.upsertDaily(points)
+            return true
+        }
+        return false
+    }
+
+    suspend fun refreshDailyCompact(symbol: String): Boolean {
+        if (alphaKey.isBlank()) return false
+        val body = retryApi { alphaApi.dailyCompact(symbol, alphaKey) } ?: return false
+        val series = body["Time Series (Daily)"] as? Map<*, *> ?: return false
+        val points = series.mapNotNull { (date, valuesAny) ->
+            val values = valuesAny as? Map<*, *> ?: return@mapNotNull null
+            DailyPriceEntity(
+                symbol = symbol,
+                date = date.toString(),
+                open = values["1. open"].toString().toDoubleOrNull() ?: return@mapNotNull null,
+                high = values["2. high"].toString().toDoubleOrNull() ?: return@mapNotNull null,
+                low = values["3. low"].toString().toDoubleOrNull() ?: return@mapNotNull null,
+                close = values["4. close"].toString().toDoubleOrNull() ?: return@mapNotNull null,
+                volume = values["5. volume"].toString().toLongOrNull() ?: 0L
+            )
+        }
+        if (points.isEmpty()) return false
+        priceDao.upsertDaily(points)
+        return true
     }
 
     suspend fun applyRetention(today: LocalDate) {
