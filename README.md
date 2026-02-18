@@ -58,9 +58,10 @@ Create `local.properties` with:
 Before first build in a fresh container/machine, run:
 
 ```bash
-./scripts/setup-android-sdk.sh
+./scripts/bootstrap-android-build-env.sh
 ```
 
+(Or run `./scripts/setup-android-sdk.sh` if you only need SDK setup.)
 
 ```properties
 TWELVE_DATA_API_KEY=your_key_here
@@ -82,16 +83,16 @@ sdk.dir=/absolute/path/to/android/sdk
 4. Run app.
 5. Grant notifications permission.
 
-## About previous PR binary-file error
+## Gradle wrapper in automation environments
 
-Some PR tools/reviewers reject binary files in generated PR content. To avoid this, this repo does **not** commit `gradle-wrapper.jar`.
-If missing locally, regenerate wrapper with:
+Some PR/review pipelines reject binary files, so `gradle/wrapper/gradle-wrapper.jar` is intentionally not committed.
+If it is missing in a fresh environment, run:
 
 ```bash
-gradle wrapper --gradle-version 8.10.2
+./scripts/bootstrap-android-build-env.sh
 ```
 
-(Requires local Gradle installation.)
+This script can regenerate the wrapper JAR without requiring preinstalled Gradle.
 
 
 ## Merge to master (conflict workflow)

@@ -45,4 +45,8 @@ interface PriceDao {
 
     @Query("SELECT COUNT(*) FROM stocks s LEFT JOIN daily_prices d ON d.symbol = s.symbol WHERE d.symbol IS NULL")
     suspend fun countSymbolsWithoutDaily(): Int
+
+    @Query("SELECT COUNT(*) FROM daily_prices")
+    suspend fun countDailyRows(): Int
+
 }
