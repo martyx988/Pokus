@@ -13,8 +13,10 @@ import com.pokus.stockalert.db.StockDao
 import com.pokus.stockalert.network.AlphaVantageService
 import com.pokus.stockalert.network.TwelveDataService
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.URL
 import java.time.LocalDate
@@ -51,7 +53,15 @@ class StockRepository(
     }
 
     suspend fun refreshNyseTickers(limit: Int? = null): Int {
-        val text = URL("https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt").readText()
+
+        val text = try {
+            withContext(Dispatchers.IO) {
+                URL("https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt").readText()
+            }
+        } catch (_: Exception) {
+            return 0
+        }
+
         val rows = parseNyseTickerRows(text, limit)
         val now = System.currentTimeMillis()
         val entities = rows.map {
@@ -87,6 +97,9 @@ class StockRepository(
     }
 
     private suspend fun loadWeeklyForSymbol(symbol: String): Boolean {
+
+        if (twelveKey.isBlank()) return false
+
         val response = retryApi { twelveApi.timeSeries(symbol, "1day", twelveKey, outputSize = 7) } ?: return false
         val values = response.values ?: return false
         val historical = values.mapNotNull { row ->
