@@ -59,7 +59,7 @@ import androidx.navigation.compose.rememberNavController
 import com.pokus.stockalert.data.AlertEntity
 import com.pokus.stockalert.data.AlertType
 import com.pokus.stockalert.data.PricePoint
-import com.pokus.stockalert.data.StockEntity
+import com.pokus.stockalert.data.TickerEntity
 import com.pokus.stockalert.repo.StockRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +71,7 @@ import java.time.LocalDate
 
 data class AppState(
     val query: String = "",
-    val searchResults: List<StockEntity> = emptyList(),
+    val searchResults: List<TickerEntity> = emptyList(),
     val intraday: List<PricePoint> = emptyList(),
     val daily: List<PricePoint> = emptyList(),
     val alerts: List<AlertEntity> = emptyList(),
@@ -115,17 +115,17 @@ class MainViewModel(private val repo: StockRepository) : ViewModel() {
         viewModelScope.launch { repo.deleteAlert(alertId) }
     }
 
-    fun runDeveloperManualApiTest() {
-        _state.update { it.copy(developerLoading = true, developerStatus = "Running API test for AAPL/MSFT...") }
+    fun runDeveloperLoadLastWeekPrices() {
+        _state.update { it.copy(developerLoading = true, developerStatus = "Loading last-week prices for ticker set (bounded run)...") }
         viewModelScope.launch {
             try {
-                val result = repo.developerManualApiLoadForAppleMicrosoft()
+                val result = repo.developerLoadLastWeekPricesForAllTickers()
                 _state.update { it.copy(developerLoading = false, developerStatus = result) }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
                         developerLoading = false,
-                        developerStatus = "Manual API test failed: ${e.message ?: e::class.java.simpleName}"
+                        developerStatus = "Developer load failed: ${e.message ?: e::class.java.simpleName}"
                     )
                 }
             }
@@ -193,7 +193,7 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
             DeveloperSettingsScreen(
                 state = state,
                 onBack = { nav.popBackStack() },
-                onRunManualApiLoad = { vm.runDeveloperManualApiTest() }
+                onRunManualApiLoad = { vm.runDeveloperLoadLastWeekPrices() }
             )
         }
     }
@@ -227,7 +227,7 @@ fun SearchScreen(
                 Card(modifier = Modifier.fillMaxWidth().clickable { onOpen(stock.symbol) }) {
                     Column(Modifier.padding(12.dp)) {
                         Text(stock.symbol, fontWeight = FontWeight.SemiBold)
-                        Text(stock.name)
+                        Text(stock.companyName)
                     }
                 }
             }
@@ -417,13 +417,14 @@ fun DeveloperSettingsScreen(
             Text("Developer settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
 
-        Text("Manual API test: load today's/recent daily prices for AAPL and MSFT into database.")
+        Text("Load NYSE ticker prices for the last week into historical/opening tables.
+Run is bounded to avoid extremely long/unresponsive developer jobs.")
 
         Button(
             onClick = onRunManualApiLoad,
             enabled = !state.developerLoading
         ) {
-            Text(if (state.developerLoading) "Running..." else "Run manual API load (AAPL + MSFT)")
+            Text(if (state.developerLoading) "Running..." else "Load last-week prices (developer run)")
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
