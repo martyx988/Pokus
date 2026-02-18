@@ -206,6 +206,7 @@ fun SearchScreen(
 enum class ChartMode { D1, W1, M1, Y1, ALL }
 
 @Composable
+
 fun DetailScreen(
     symbol: String,
     state: AppState,
@@ -215,6 +216,7 @@ fun DetailScreen(
 ) {
     var mode by remember { mutableStateOf(ChartMode.M1) }
     var alertType by remember { mutableStateOf(AlertType.RISES_ABOVE) }
+
     var alertValueText by remember { mutableStateOf("") }
     var deleteOnTrigger by remember { mutableStateOf(true) }
 
@@ -225,6 +227,7 @@ fun DetailScreen(
         ChartMode.Y1 -> state.daily.takeLast(252)
         ChartMode.ALL -> state.daily
     }
+
 
     val latest = points.lastOrNull()?.price ?: 0.0
     val previous = points.dropLast(1).lastOrNull()?.price
@@ -263,6 +266,7 @@ fun DetailScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+
             }
             Text("Today", color = Color(0xFF9AA8C1))
         }
