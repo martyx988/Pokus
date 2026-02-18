@@ -73,7 +73,9 @@ class StockRepository(
 
     suspend fun preloadDailySnapshotFromAssets(
         context: Context,
+
         assetPath: String = "bootstrap/nyse_daily_snapshot_2016-12-29_2016-12-30.csv"
+
     ): Int {
         if (priceDao.countDailyRows() > 0) return 0
 
@@ -120,6 +122,7 @@ class StockRepository(
         return prices.size
     }
 
+
     suspend fun developerManualApiLoadForAppleMicrosoft(): String {
         val symbols = listOf("AAPL", "MSFT")
         val now = System.currentTimeMillis()
@@ -162,6 +165,7 @@ class StockRepository(
         priceDao.upsertDaily(points)
         return true
     }
+
 
     suspend fun populateNyseUniverseAndDailyHistory(
         maxSymbolsPerRun: Int = 25,
