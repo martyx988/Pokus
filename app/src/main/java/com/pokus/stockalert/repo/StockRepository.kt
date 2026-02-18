@@ -1,5 +1,6 @@
 package com.pokus.stockalert.repo
 
+import android.content.Context
 import com.pokus.stockalert.BuildConfig
 import com.pokus.stockalert.data.AlertEntity
 import com.pokus.stockalert.data.AlertType
@@ -68,6 +69,55 @@ class StockRepository(
         }
 
         if (result.isNotEmpty()) stockDao.upsertStocks(result)
+    }
+
+    suspend fun preloadDailySnapshotFromAssets(
+        context: Context,
+        assetPath: String = "bootstrap/nyse_daily_snapshot_2016-12-30.csv"
+    ): Int {
+        if (priceDao.countDailyRows() > 0) return 0
+
+        val now = System.currentTimeMillis()
+        val stocks = mutableListOf<StockEntity>()
+        val prices = mutableListOf<DailyPriceEntity>()
+
+        context.assets.open(assetPath).bufferedReader().use { reader ->
+            reader.readLine() // header
+            reader.lineSequence().forEach { line ->
+                val cols = line.split(',')
+                if (cols.size < 7) return@forEach
+
+                val symbol = cols[0].trim()
+                val date = cols[1].trim()
+                val open = cols[2].toDoubleOrNull() ?: return@forEach
+                val high = cols[3].toDoubleOrNull() ?: return@forEach
+                val low = cols[4].toDoubleOrNull() ?: return@forEach
+                val close = cols[5].toDoubleOrNull() ?: return@forEach
+                val volume = cols[6].toLongOrNull() ?: 0L
+                if (symbol.isBlank() || date.isBlank()) return@forEach
+
+                stocks += StockEntity(
+                    symbol = symbol,
+                    name = symbol,
+                    exchange = "NYSE",
+                    updatedAtEpochMs = now
+                )
+                prices += DailyPriceEntity(
+                    symbol = symbol,
+                    date = date,
+                    open = open,
+                    high = high,
+                    low = low,
+                    close = close,
+                    volume = volume
+                )
+            }
+        }
+
+        if (stocks.isEmpty() || prices.isEmpty()) return 0
+        stockDao.upsertStocks(stocks.distinctBy { it.symbol })
+        priceDao.upsertDaily(prices)
+        return prices.size
     }
 
     suspend fun populateNyseUniverseAndDailyHistory(

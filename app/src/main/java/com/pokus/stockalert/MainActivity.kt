@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,13 +22,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -42,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -103,6 +107,10 @@ class MainViewModel(private val repo: StockRepository) : ViewModel() {
     fun addAlert(symbol: String, type: AlertType, value: Double, deleteOnTrigger: Boolean) {
         viewModelScope.launch { repo.addAlert(symbol, type, value, deleteOnTrigger) }
     }
+
+    fun deleteAlert(alertId: Long) {
+        viewModelScope.launch { repo.deleteAlert(alertId) }
+    }
 }
 
 class VMFactory(private val repo: StockRepository) : ViewModelProvider.Factory {
@@ -149,10 +157,16 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
         composable("detail/{symbol}") { backStack ->
             val symbol = backStack.arguments?.getString("symbol") ?: return@composable
             LaunchedEffect(symbol) { vm.loadSymbol(symbol) }
-            DetailScreen(symbol = symbol, state = state, onAddAlert = vm::addAlert)
+            DetailScreen(
+                symbol = symbol,
+                state = state,
+                onAddAlert = vm::addAlert,
+                onDeleteAlert = vm::deleteAlert,
+                onBack = { nav.popBackStack() }
+            )
         }
         composable("attribution") {
-            AttributionScreen()
+            AttributionScreen(onBack = { nav.popBackStack() })
         }
     }
 }
@@ -189,63 +203,167 @@ fun SearchScreen(
     }
 }
 
-enum class ChartMode { D1, M1, Y1, Y5, ALL }
+enum class ChartMode { D1, W1, M1, Y1, ALL }
 
 @Composable
-fun DetailScreen(symbol: String, state: AppState, onAddAlert: (String, AlertType, Double, Boolean) -> Unit) {
-    var mode by remember { mutableStateOf(ChartMode.D1) }
-    var alertType by remember { mutableStateOf(AlertType.PERCENT_CHANGE_FROM_PREVIOUS) }
+fun DetailScreen(
+    symbol: String,
+    state: AppState,
+    onAddAlert: (String, AlertType, Double, Boolean) -> Unit,
+    onDeleteAlert: (Long) -> Unit,
+    onBack: () -> Unit
+) {
+    var mode by remember { mutableStateOf(ChartMode.M1) }
+    var alertType by remember { mutableStateOf(AlertType.RISES_ABOVE) }
     var alertValueText by remember { mutableStateOf("") }
     var deleteOnTrigger by remember { mutableStateOf(true) }
 
     val points = when (mode) {
         ChartMode.D1 -> state.intraday
+        ChartMode.W1 -> state.daily.takeLast(5)
         ChartMode.M1 -> state.daily.takeLast(22)
         ChartMode.Y1 -> state.daily.takeLast(252)
-        ChartMode.Y5 -> state.daily.takeLast(252 * 5)
         ChartMode.ALL -> state.daily
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(symbol, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ChartMode.entries.forEach {
-                Button(onClick = { mode = it }, modifier = Modifier.height(36.dp)) { Text(it.name) }
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth().height(220.dp)) { LineChart(points) }
+    val latest = points.lastOrNull()?.price ?: 0.0
+    val previous = points.dropLast(1).lastOrNull()?.price
+    val dayChangePct = if (previous != null && previous != 0.0) ((latest - previous) / previous) * 100.0 else 0.0
 
-        Text("Add alert", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        AlertTypePicker(alertType = alertType, onSelect = { alertType = it })
-        OutlinedTextField(
-            value = alertValueText,
-            onValueChange = { alertValueText = it },
-            label = {
-                Text(
-                    when (alertType) {
-                        AlertType.PERCENT_CHANGE_FROM_PREVIOUS -> "Percent change (e.g., 20)"
-                        else -> "Price"
-                    }
-                )
-            }
+    val bg = Brush.verticalGradient(listOf(Color(0xFF081321), Color(0xFF06101B)))
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bg)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("←") }
+            Spacer(Modifier.weight(1f))
+            Text(symbol, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFFEAF1FF))
+            Spacer(Modifier.weight(1f))
+            Text("★", color = Color(0xFFEAF1FF))
+        }
+
+        Text(
+            text = "$" + String.format("%.2f", latest),
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFF2F7FF)
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = deleteOnTrigger, onCheckedChange = { deleteOnTrigger = it })
-            Text("Delete alert after it triggers")
-        }
-        Button(onClick = {
-            alertValueText.toDoubleOrNull()?.let { onAddAlert(symbol, alertType, it, deleteOnTrigger) }
-            alertValueText = ""
-        }) { Text("Save alert") }
 
-        Text("Current alerts", style = MaterialTheme.typography.titleMedium)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.alerts) { alert ->
-                Card(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Card(shape = RoundedCornerShape(20.dp)) {
+                Box(modifier = Modifier.background(Color(0xFF0A3B2E)).padding(horizontal = 14.dp, vertical = 6.dp)) {
                     Text(
-                        text = "${alert.type} → ${alert.value} | deleteOnTrigger=${alert.deleteOnTrigger}",
-                        modifier = Modifier.padding(10.dp)
+                        text = (if (dayChangePct >= 0) "↗" else "↘") + String.format(" %.1f%%", kotlin.math.abs(dayChangePct)),
+                        color = if (dayChangePct >= 0) Color(0xFF2DE08E) else Color(0xFFFF6B6B),
+                        fontWeight = FontWeight.SemiBold
                     )
+                }
+            }
+            Text("Today", color = Color(0xFF9AA8C1))
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth().height(250.dp),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Box(Modifier.background(Color(0xFF0A1A2F)).padding(12.dp)) {
+                LineChart(points)
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().background(Color(0xFF253447), RoundedCornerShape(28.dp)).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf(
+                ChartMode.D1 to "1D",
+                ChartMode.W1 to "1W",
+                ChartMode.M1 to "1M",
+                ChartMode.Y1 to "1Y",
+                ChartMode.ALL to "ALL"
+            ).forEach { (m, label) ->
+                val active = mode == m
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(if (active) Color(0xFF2385F0) else Color.Transparent, RoundedCornerShape(24.dp))
+                        .clickable { mode = m }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, color = if (active) Color.White else Color(0xFF9CAAC0), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(
+                modifier = Modifier.background(Color(0xFF162334)).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Add Alert", style = MaterialTheme.typography.headlineSmall, color = Color(0xFFEAF1FF), fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f)) { AlertTypePicker(alertType = alertType, onSelect = { alertType = it }) }
+                    OutlinedTextField(
+                        value = alertValueText,
+                        onValueChange = { alertValueText = it },
+                        label = { Text("Target Price") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("One-time alert", color = Color(0xFFD7E2F4))
+                    Spacer(Modifier.weight(1f))
+                    Switch(checked = deleteOnTrigger, onCheckedChange = { deleteOnTrigger = it })
+                }
+                Button(
+                    onClick = {
+                        alertValueText.toDoubleOrNull()?.let { onAddAlert(symbol, alertType, it, deleteOnTrigger) }
+                        alertValueText = ""
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) { Text("Create Alert") }
+            }
+        }
+
+        Text("ACTIVE ALERTS", color = Color(0xFF8C9BB2), fontWeight = FontWeight.Bold)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(state.alerts) { alert ->
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                    Row(
+                        modifier = Modifier.background(Color(0xFF162334)).padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (alert.type == AlertType.DROPS_BELOW) Color(0xFF3B2230) else Color(0xFF13382F),
+                                    CircleShape
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(if (alert.type == AlertType.DROPS_BELOW) "↘" else "↗", color = if (alert.type == AlertType.DROPS_BELOW) Color(0xFFFF6B6B) else Color(0xFF2DE08E))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = if (alert.type == AlertType.DROPS_BELOW) "Price drops below" else if (alert.type == AlertType.RISES_ABOVE) "Price rises above" else "Price change",
+                                color = Color(0xFFEAF1FF)
+                            )
+                            Text(
+                                text = if (alert.type == AlertType.PERCENT_CHANGE_FROM_PREVIOUS) String.format("%.2f%%", alert.value * 100.0) else "$" + String.format("%.2f", alert.value),
+                                color = Color.White,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        IconButton(onClick = { onDeleteAlert(alert.id) }) { Text("🗑", color = Color(0xFFA6B8D3)) }
+                    }
                 }
             }
         }
@@ -253,8 +371,9 @@ fun DetailScreen(symbol: String, state: AppState, onAddAlert: (String, AlertType
 }
 
 @Composable
-fun AttributionScreen() {
+fun AttributionScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("Back") }
         Text("Data Attribution", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Market data powered by Alpha Vantage.")
         Text("Please review Alpha Vantage terms of service before distributing the app.")
@@ -266,7 +385,7 @@ fun AlertTypePicker(alertType: AlertType, onSelect: (AlertType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Card(
-            modifier = Modifier.width(320.dp).clickable { expanded = true },
+            modifier = Modifier.fillMaxWidth().clickable { expanded = true },
             shape = RoundedCornerShape(10.dp)
         ) {
             Text(
@@ -304,14 +423,25 @@ fun LineChart(points: List<PricePoint>) {
     val span = (max - min).coerceAtLeast(0.01)
 
     Canvas(modifier = Modifier.fillMaxSize().background(Color(0xFF10172A))) {
+        val chartColor = Color(0xFF62D2A2)
         val stepX = size.width / (points.size - 1).coerceAtLeast(1)
+
+        if (points.size == 1) {
+            drawCircle(
+                color = chartColor,
+                radius = 8f,
+                center = Offset(size.width / 2f, size.height / 2f)
+            )
+            return@Canvas
+        }
+
         for (i in 0 until points.lastIndex) {
             val p1 = points[i]
             val p2 = points[i + 1]
             val y1 = size.height - (((p1.price - min) / span).toFloat() * size.height)
             val y2 = size.height - (((p2.price - min) / span).toFloat() * size.height)
             drawLine(
-                color = Color(0xFF62D2A2),
+                color = chartColor,
                 start = Offset(i * stepX, y1),
                 end = Offset((i + 1) * stepX, y2),
                 strokeWidth = 4f
