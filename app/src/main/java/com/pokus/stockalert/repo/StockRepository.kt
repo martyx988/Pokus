@@ -18,6 +18,12 @@ import kotlinx.coroutines.flow.map
 import java.io.IOException
 import java.time.LocalDate
 
+data class NyseBootstrapResult(
+    val insertedSymbols: Int,
+    val hydratedSymbols: Int,
+    val symbolsRemainingWithoutDaily: Int
+)
+
 class StockRepository(
     private val twelveApi: TwelveDataService,
     private val alphaApi: AlphaVantageService,
@@ -62,6 +68,83 @@ class StockRepository(
         }
 
         if (result.isNotEmpty()) stockDao.upsertStocks(result)
+    }
+
+    suspend fun populateNyseUniverseAndDailyHistory(
+        maxSymbolsPerRun: Int = 25,
+        symbolPageSize: Int = 1000,
+        maxSymbolPages: Int = 10
+    ): NyseBootstrapResult {
+        if (twelveKey.isBlank()) {
+            return NyseBootstrapResult(insertedSymbols = 0, hydratedSymbols = 0, symbolsRemainingWithoutDaily = 0)
+        }
+
+        val now = System.currentTimeMillis()
+        var insertedSymbols = 0
+        var page = 1
+        while (page <= maxSymbolPages) {
+            val response = retryApi {
+                twelveApi.stocks(
+                    exchange = "NYSE",
+                    country = "United States",
+                    apiKey = twelveKey,
+                    page = page,
+                    outputSize = symbolPageSize
+                )
+            } ?: break
+
+            val mapped = response.data
+                .asSequence()
+                .filter { row -> row.symbol.isNotBlank() }
+                .map { row ->
+                    StockEntity(
+                        symbol = row.symbol,
+                        name = row.name ?: row.symbol,
+                        exchange = row.exchange ?: "NYSE",
+                        updatedAtEpochMs = now
+                    )
+                }
+                .toList()
+
+            if (mapped.isEmpty()) break
+            stockDao.upsertStocks(mapped)
+            insertedSymbols += mapped.size
+
+            val totalPages = response.meta?.totalPages
+            if (totalPages != null && page >= totalPages) break
+            page++
+        }
+
+        var hydrated = 0
+        val targets = priceDao.symbolsWithoutDaily(maxSymbolsPerRun)
+        for (symbol in targets) {
+            val response = retryApi { twelveApi.timeSeries(symbol, "1day", twelveKey, outputSize = 3000) } ?: continue
+            val values = response.values ?: continue
+            val points = values.mapNotNull { valuesRow ->
+                val date = valuesRow["datetime"] ?: return@mapNotNull null
+                DailyPriceEntity(
+                    symbol = symbol,
+                    date = date.take(10),
+                    open = valuesRow["open"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                    high = valuesRow["high"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                    low = valuesRow["low"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                    close = valuesRow["close"]?.toDoubleOrNull() ?: return@mapNotNull null,
+                    volume = valuesRow["volume"]?.toLongOrNull() ?: 0L
+                )
+            }
+            if (points.isNotEmpty()) {
+                priceDao.upsertDaily(points)
+                hydrated++
+            }
+            delay(200L)
+        }
+
+        val remaining = priceDao.countSymbolsWithoutDaily()
+        return NyseBootstrapResult(
+            insertedSymbols = insertedSymbols,
+            hydratedSymbols = hydrated,
+            symbolsRemainingWithoutDaily = remaining
+        )
     }
 
     suspend fun refreshIntraday(symbol: String) {
