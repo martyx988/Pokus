@@ -5,20 +5,21 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "stocks")
-data class StockEntity(
+@Entity(tableName = "tickers")
+data class TickerEntity(
     @PrimaryKey val symbol: String,
-    val name: String,
+    val companyName: String,
+    val securityType: String,
     val exchange: String,
     val updatedAtEpochMs: Long
 )
 
 @Entity(
-    tableName = "daily_prices",
+    tableName = "historical_prices",
     primaryKeys = ["symbol", "date"],
     foreignKeys = [
         ForeignKey(
-            entity = StockEntity::class,
+            entity = TickerEntity::class,
             parentColumns = ["symbol"],
             childColumns = ["symbol"],
             onDelete = ForeignKey.CASCADE
@@ -26,38 +27,35 @@ data class StockEntity(
     ],
     indices = [Index("symbol"), Index("date")]
 )
-data class DailyPriceEntity(
+data class HistoricalPriceEntity(
     val symbol: String,
     val date: String,
     val open: Double,
     val high: Double,
     val low: Double,
     val close: Double,
-    val volume: Long
+    val volume: Long,
+    val provider: String = "twelve_data"
 )
 
 @Entity(
-    tableName = "intraday_prices",
-    primaryKeys = ["symbol", "timestamp"],
+    tableName = "daily_opening_prices",
+    primaryKeys = ["symbol", "date"],
     foreignKeys = [
         ForeignKey(
-            entity = StockEntity::class,
+            entity = TickerEntity::class,
             parentColumns = ["symbol"],
             childColumns = ["symbol"],
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("symbol"), Index("tradingDate")]
+    indices = [Index("symbol"), Index("date")]
 )
-data class IntradayPriceEntity(
+data class DailyOpeningPriceEntity(
     val symbol: String,
-    val timestamp: String,
-    val tradingDate: String,
+    val date: String,
     val open: Double,
-    val high: Double,
-    val low: Double,
-    val close: Double,
-    val volume: Long
+    val provider: String = "twelve_data"
 )
 
 enum class AlertType {
@@ -71,7 +69,7 @@ enum class AlertType {
     indices = [Index("symbol")],
     foreignKeys = [
         ForeignKey(
-            entity = StockEntity::class,
+            entity = TickerEntity::class,
             parentColumns = ["symbol"],
             childColumns = ["symbol"],
             onDelete = ForeignKey.CASCADE

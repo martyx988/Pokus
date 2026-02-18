@@ -5,16 +5,13 @@ import androidx.room.Room
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.pokus.stockalert.alerts.NotificationHelper
 import com.pokus.stockalert.db.AppDatabase
 import com.pokus.stockalert.network.NetworkModule
 import com.pokus.stockalert.repo.StockRepository
-import com.pokus.stockalert.worker.NyseBootstrapWorker
 import com.pokus.stockalert.worker.PriceRefreshWorker
 import java.util.concurrent.TimeUnit
 
@@ -25,7 +22,9 @@ class StockAlertApp : Application() {
         super.onCreate()
         NotificationHelper.createChannel(this)
 
-        val db = Room.databaseBuilder(this, AppDatabase::class.java, "stock-alert-db").build()
+        val db = Room.databaseBuilder(this, AppDatabase::class.java, "stock-alert-db")
+            .fallbackToDestructiveMigration()
+            .build()
         container = AppContainer(
             repo = StockRepository(
                 twelveApi = NetworkModule.twelveDataApi,
@@ -51,14 +50,8 @@ class StockAlertApp : Application() {
             request
         )
 
-        WorkManager.getInstance(this).enqueueUniqueWork(
-            "nyse_bootstrap",
-            ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<NyseBootstrapWorker>()
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 60, TimeUnit.SECONDS)
-                .setConstraints(constraints)
-                .build()
-        )
+
+
 
     }
 }
