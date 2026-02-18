@@ -1,5 +1,7 @@
 package com.pokus.stockalert.repo
 
+
+import com.pokus.stockalert.BuildConfig
 import com.pokus.stockalert.data.AlertEntity
 import com.pokus.stockalert.data.AlertType
 import com.pokus.stockalert.data.DailyOpeningPriceEntity
@@ -11,14 +13,17 @@ import com.pokus.stockalert.db.PriceDao
 import com.pokus.stockalert.db.StockDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.io.IOException
 import java.net.URL
 import java.time.Instant
+
 import java.time.LocalDate
 import java.time.ZoneOffset
 
@@ -55,6 +60,7 @@ class StockRepository(
     }
 
     suspend fun refreshNyseTickers(limit: Int? = null): Int {
+
         val text = try {
             withContext(Dispatchers.IO) {
                 URL("https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt").readText()
@@ -76,18 +82,22 @@ class StockRepository(
                 updatedAtEpochMs = now
             )
         }
+
         stockDao.upsertTickers(entities)
         return entities.size
     }
+
 
     suspend fun developerLoadLastWeekPricesForAllTickers(
         maxSymbolsPerRun: Int = 300,
         perSymbolTimeoutMs: Long = 15_000L
     ): String {
+
         if (stockDao.countTickers() == 0) refreshNyseTickers()
 
         val symbols = stockDao.allSymbols()
         if (symbols.isEmpty()) return "No tickers available."
+
 
         val targets = symbols.take(maxSymbolsPerRun)
         var ok = 0
@@ -141,6 +151,7 @@ class StockRepository(
         return parseYahooChartRows(body, symbol)
             .sortedBy { it.date }
             .takeLast(7)
+
     }
 
     suspend fun populateNyseUniverseAndDailyHistory(
@@ -151,8 +162,10 @@ class StockRepository(
         val inserted = refreshNyseTickers()
         val targets = priceDao.symbolsWithoutHistorical(maxSymbolsPerRun)
         var hydrated = 0
+
         targets.forEach { symbol ->
             if (loadWeeklyForSymbol(symbol)) hydrated++
+
         }
         return NyseBootstrapResult(inserted, hydrated, priceDao.countSymbolsWithoutHistorical())
     }
@@ -193,12 +206,12 @@ class StockRepository(
     }
 
     fun observeAlerts(symbol: String) = alertDao.observeForSymbol(symbol)
-
     suspend fun enabledAlerts(): List<AlertEntity> = alertDao.allEnabled()
 
     suspend fun latestIntraday(symbol: String) = priceDao.latestDailyOpening(symbol)?.let {
         HistoricalPriceEntity(symbol, it.date, it.open, it.open, it.open, it.open, 0L, it.provider)
     }
+
 
     suspend fun previousIntraday(symbol: String) = priceDao.previousDailyOpening(symbol)?.let {
         HistoricalPriceEntity(symbol, it.date, it.open, it.open, it.open, it.open, 0L, it.provider)
@@ -208,8 +221,10 @@ class StockRepository(
 
     suspend fun previousDailyBefore(symbol: String, date: String) = priceDao.previousHistoricalBefore(symbol, date)
 
-    suspend fun deleteAlert(alertId: Long) = alertDao.deleteById(alertId)
 
+    suspend fun latestDaily(symbol: String) = priceDao.latestHistorical(symbol)
+    suspend fun previousDailyBefore(symbol: String, date: String) = priceDao.previousHistoricalBefore(symbol, date)
+    suspend fun deleteAlert(alertId: Long) = alertDao.deleteById(alertId)
     suspend fun updateAlertConditionState(alertId: Long, active: Boolean) = alertDao.updateConditionState(alertId, active)
 
     private suspend fun <T> retryApi(block: suspend () -> T): T? {
@@ -269,6 +284,7 @@ class StockRepository(
             }
             return out.distinctBy { it.symbol }.sortedBy { it.symbol }
         }
+
 
         fun parseYahooChartRows(rawJson: String, symbol: String): List<HistoricalPriceEntity> {
             val root = JSONObject(rawJson)
@@ -330,5 +346,6 @@ class StockRepository(
                 .distinctBy { it.date }
                 .sortedBy { it.date }
         }
+
     }
 }

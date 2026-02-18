@@ -35,6 +35,7 @@ class StockRepositoryParsingTest {
         assertTrue(result.none { it.symbol == "BRK.B" })
     }
 
+
     @Test
     fun parseYahooChartRows_mapsToHistoricalFormat() {
         val raw = """
@@ -68,4 +69,5 @@ class StockRepositoryParsingTest {
         assertEquals(100.5, rows.first().open, 0.0001)
         assertEquals(109.5, rows.first().close, 0.0001)
     }
+
 }
