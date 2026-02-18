@@ -149,10 +149,15 @@ fun AppNavHost(nav: NavHostController, state: AppState, vm: MainViewModel) {
         composable("detail/{symbol}") { backStack ->
             val symbol = backStack.arguments?.getString("symbol") ?: return@composable
             LaunchedEffect(symbol) { vm.loadSymbol(symbol) }
-            DetailScreen(symbol = symbol, state = state, onAddAlert = vm::addAlert)
+            DetailScreen(
+                symbol = symbol,
+                state = state,
+                onAddAlert = vm::addAlert,
+                onBack = { nav.popBackStack() }
+            )
         }
         composable("attribution") {
-            AttributionScreen()
+            AttributionScreen(onBack = { nav.popBackStack() })
         }
     }
 }
@@ -192,7 +197,7 @@ fun SearchScreen(
 enum class ChartMode { D1, M1, Y1, Y5, ALL }
 
 @Composable
-fun DetailScreen(symbol: String, state: AppState, onAddAlert: (String, AlertType, Double, Boolean) -> Unit) {
+fun DetailScreen(symbol: String, state: AppState, onAddAlert: (String, AlertType, Double, Boolean) -> Unit, onBack: () -> Unit) {
     var mode by remember { mutableStateOf(ChartMode.D1) }
     var alertType by remember { mutableStateOf(AlertType.PERCENT_CHANGE_FROM_PREVIOUS) }
     var alertValueText by remember { mutableStateOf("") }
@@ -207,7 +212,10 @@ fun DetailScreen(symbol: String, state: AppState, onAddAlert: (String, AlertType
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(symbol, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("Back") }
+            Text(symbol, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ChartMode.entries.forEach {
                 Button(onClick = { mode = it }, modifier = Modifier.height(36.dp)) { Text(it.name) }
@@ -253,8 +261,9 @@ fun DetailScreen(symbol: String, state: AppState, onAddAlert: (String, AlertType
 }
 
 @Composable
-fun AttributionScreen() {
+fun AttributionScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onBack, modifier = Modifier.height(36.dp)) { Text("Back") }
         Text("Data Attribution", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Market data powered by Alpha Vantage.")
         Text("Please review Alpha Vantage terms of service before distributing the app.")
@@ -304,14 +313,25 @@ fun LineChart(points: List<PricePoint>) {
     val span = (max - min).coerceAtLeast(0.01)
 
     Canvas(modifier = Modifier.fillMaxSize().background(Color(0xFF10172A))) {
+        val chartColor = Color(0xFF62D2A2)
         val stepX = size.width / (points.size - 1).coerceAtLeast(1)
+
+        if (points.size == 1) {
+            drawCircle(
+                color = chartColor,
+                radius = 8f,
+                center = Offset(size.width / 2f, size.height / 2f)
+            )
+            return@Canvas
+        }
+
         for (i in 0 until points.lastIndex) {
             val p1 = points[i]
             val p2 = points[i + 1]
             val y1 = size.height - (((p1.price - min) / span).toFloat() * size.height)
             val y2 = size.height - (((p2.price - min) / span).toFloat() * size.height)
             drawLine(
-                color = Color(0xFF62D2A2),
+                color = chartColor,
                 start = Offset(i * stepX, y1),
                 end = Offset((i + 1) * stepX, y2),
                 strokeWidth = 4f
