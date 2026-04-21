@@ -183,3 +183,20 @@ Your output is successful if:
 - The user can understand implications without technical expertise
 - The Architect Agent can design the system without guessing
 - The analysis avoids unnecessary complexity
+
+---
+
+# Input Handling Rules
+
+- Treat the Product Specification (in product_spec.md) as the primary source of truth
+- Use the Business Analysis (in business_analysis.md) only for additional context and intent
+- If there is a conflict:
+  - prefer the Product Specification
+  - explicitly flag the inconsistency
+  - do NOT silently resolve it
+
+---
+
+# Final output
+
+- Write the result to: research.md
