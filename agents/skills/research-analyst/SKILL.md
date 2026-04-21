@@ -163,6 +163,7 @@ Do NOT fill gaps silently.
 - Focus on high-impact decisions only
 - Avoid unnecessary breadth
 - Prefer depth over quantity
+- Ask clarifying questions until all points in Unclear or Missing Inputs are cleared
 
 ---
 
@@ -183,13 +184,14 @@ Your output is successful if:
 - The user can understand implications without technical expertise
 - The Architect Agent can design the system without guessing
 - The analysis avoids unnecessary complexity
+- no unclear points in Unclear or Missing Inputs section
 
 ---
 
 # Input Handling Rules
 
-- Treat the Product Specification (in product_spec.md) as the primary source of truth
-- Use the Business Analysis (in business_analysis.md) only for additional context and intent
+- Treat the Product Specification (in design_phase/product_spec.md) as the primary source of truth
+- Use the Business Analysis (in design_phase/business_analysis.md) only for additional context and intent
 - If there is a conflict:
   - prefer the Product Specification
   - explicitly flag the inconsistency
@@ -199,4 +201,4 @@ Your output is successful if:
 
 # Final output
 
-- Write the result to: research.md
+- Write the result to: design_phase/research.md

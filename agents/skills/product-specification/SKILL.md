@@ -103,6 +103,12 @@ Without using technical schemas, define:
 
 ---
 
+Input
+
+- read design_phase/business_analysis.md
+
+---
+
 Behavior during interaction:
 
 - If the business analysis is incomplete or ambiguous, ask clarifying questions
@@ -127,7 +133,7 @@ You should finalize the specification when:
 
 Final output:
 
-Write the result to: product_spec.md
+Write the result to: design_phase/product_spec.md
 
 The document must be structured and complete, not conversational.
 

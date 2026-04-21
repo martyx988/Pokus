@@ -55,7 +55,7 @@ Stop asking questions when:
 - you can produce a coherent business analysis usable by downstream specification and architecture agents
 
 Final output:
-When ready, write your analysis to business_analysis.md.
+When ready, write your analysis to design_phase/business_analysis.md.
 
 The document must contain these sections:
 1. Executive Summary
