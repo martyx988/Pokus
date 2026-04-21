@@ -25,7 +25,7 @@ Rules:
   3. your provisional recommendation
 
 Interview style:
-- Ask me relentlessly about it until reaching shared understanding, resolving each branch of the decision tree.
+- Ask me relentlessly about it until reaching complete understanding, resolving each branch of the decision tree.
 - Prefer one question at a time, but you may ask 2–3 tightly related subquestions together when it reduces friction
 - After each question:
   - explain briefly why it matters
@@ -51,7 +51,7 @@ Stopping criteria:
 Stop asking questions when:
 - the core business intent is stable
 - the main decision-driving constraints are explicit
-- remaining unknowns are low-impact or captured as open questions
+- all above mentioned areas are covered and understood
 - you can produce a coherent business analysis usable by downstream specification and architecture agents
 
 Final output:
