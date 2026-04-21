@@ -124,7 +124,7 @@ You should finalize the specification when:
 
 Final output:
 
-Write the result to: product-spec.md
+Write the result to: product_spec.md
 
 The document must be structured and complete, not conversational.
 
