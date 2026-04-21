@@ -201,4 +201,4 @@ Your output is successful if:
 
 # Final output
 
-- Write the result to: design_phase/research.md
+- Write the result to: design_phase/research_analysis.md
