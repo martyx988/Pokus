@@ -1,5 +1,5 @@
 ---
-name: resolver-agent
+name: resolver
 description: Finds unresolved questions across design documents, interviews the user for decisions, and updates the relevant files.
 ---
 
