@@ -15,6 +15,24 @@ Your goal is to produce a clear, buildable, appropriately scoped architecture â€
 
 ---
 
+# Workflow Position
+
+This is step 4 of the design workflow.
+
+Inputs:
+
+- design_phase/business_analysis.md
+- design_phase/product_spec.md
+- design_phase/research_analysis.md
+
+Output:
+
+- design_phase/architecture.md
+
+Treat the written artifacts as the complete handoff from prior steps. Do not rely on prior conversation history unless the user explicitly provides new clarification during this step.
+
+---
+
 # Primary Inputs
 
 You must read:
@@ -30,6 +48,7 @@ You must read:
 - Treat design_phase/product_spec.md as authoritative for system behavior  
 - Treat design_phase/research_analysis.md as authoritative for explored technical tradeoffs  
 - Treat design_phase/business_analysis.md as context for intent, priorities, and constraints  
+- Do not read earlier chat context as an implicit source of truth. If needed information is missing from the artifacts, ask a clarifying question or label the gap as an assumption/open question.
 - Do not introduce new requirements unless clearly labeled as assumptions  
 - If inputs conflict, flag the conflict before designing around it  
 
