@@ -19,17 +19,17 @@ Your goal is to produce a clear, buildable, appropriately scoped architecture �
 
 You must read:
 
-1. `product-spec.md` — primary source of truth for system behavior  
-2. `research-analysis.md` — primary source for technical options and tradeoffs  
-3. `business-analysis.md` — context for business priorities and constraints  
+1. design_phase/product_spec.md — primary source of truth for system behavior  
+2. design_phase/research_analysis.md — primary source for technical options and tradeoffs  
+3. design_phase/business_analysis.md — context for business priorities and constraints  
 
 ---
 
 # Source of Truth Rules
 
-- Treat `product-spec.md` as authoritative for system behavior  
-- Treat `research-analysis.md` as authoritative for explored technical tradeoffs  
-- Treat `business-analysis.md` as context for intent, priorities, and constraints  
+- Treat design_phase/product_spec.md as authoritative for system behavior  
+- Treat design_phase/research_analysis.md as authoritative for explored technical tradeoffs  
+- Treat design_phase/business_analysis.md as context for intent, priorities, and constraints  
 - Do not introduce new requirements unless clearly labeled as assumptions  
 - If inputs conflict, flag the conflict before designing around it  
 
