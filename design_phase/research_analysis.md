@@ -637,8 +637,14 @@ For this system, the following are the clearest overengineering risks:
 - Operator dashboards live on the VPS backend and are accessed privately through an SSH tunnel from the owner's home PC.
 - The alert algorithm is moderate in computational cost and suitable for routine daily processing.
 - Recovery expectations imply no more than 15 minutes of acceptable data loss and that more than 15 minutes of unavailability is concerning.
-- Backup expectations are regular local backups on the VPS disk plus manual ad hoc off-machine backup copies.
+- Backup expectations are frugal: automated daily PostgreSQL dumps plus file/config backups on the VPS, overwriting the previous local backup so only one local backup copy is stored, plus manual ad hoc unencrypted off-machine backup copies.
 
 ### Unclear or Missing Inputs
 
-- No currently unresolved research inputs are considered blocking for architectural decision-making.
+- Additional research is required to prepare an exchange-agnostic market-data source candidate pool for backend ingestion. This should not be limited to NYSE, Nasdaq, or Prague Stock Exchange.
+- The candidate pool must include `yfinance`.
+- FinceptTerminal should be reviewed as inspiration for source discovery because it advertises broad connector coverage, including Yahoo Finance, Polygon, FRED, IMF, World Bank, DBnomics, AkShare, government APIs, and broker/market-data integrations.
+- The initial validation matrix should include: `yfinance`, Stooq/pandas-datareader, Nasdaq Data Link/free datasets, Alpha Vantage, Twelve Data, Financial Modeling Prep, Finnhub, Tiingo, Polygon free tier, EODHD/free tier, Marketstack/free tier, OpenFIGI for identifiers, DBnomics, FRED, World Bank, IMF, AkShare, and official exchange downloads as reference/validation sources rather than preferred primary adapters.
+- All listed candidate sources should be tested during validation, because many are expected to fail completeness, speed, cost, terms, rate-limit, or exchange-coverage requirements. Failed candidates are useful validation outcomes, not wasted effort.
+- The research output should be a validation matrix of free sources, APIs, and Python libraries that may support daily open/close prices, historical prices, volume/turnover, instrument discovery, identifiers, and exchange-calendar support across current and future exchanges.
+- Each candidate source should be assessed later against completeness, correctness, timeliness, speed, cost, terms, rate limits, exchange coverage, implementation effort, and operational reliability.

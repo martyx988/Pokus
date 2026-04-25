@@ -125,7 +125,7 @@ One codebase and one domain model are deployed as two process types: an API/web 
 
 - Backend: modular web application.
 - Database: PostgreSQL.
-- Jobs: lightweight job queue or database-backed queue.
+- Jobs: PostgreSQL-backed persistent job records/queue at launch.
 - Cache: database-backed precomputed read views initially; optional Redis later.
 - Deployment: one VPS running API, worker, PostgreSQL, reverse proxy, backups, and observability.
 - Observability: structured logs, metrics, health checks, and private dashboards.
@@ -342,8 +342,8 @@ Purpose: Maintain the supported instrument universe for configured exchanges and
 Responsibilities:
 
 - Discover candidate instruments.
-- Apply primary/best-listing policy.
-- Apply exclusion and quality rules.
+- Apply primary/best-listing policy, including an automatically derived exchange activity priority for tie-breaking after home exchange and listing-level turnover.
+- Apply exclusion and quality rules, including the confirmed launch thresholds: low-turnover exclusion after a 60 trading-day review window below the launch traded-value threshold, stale/missing-data exclusion after missing or invalid prices on 3 of the last 10 expected trading days, and protected benchmark exceptions when needed for correctness checks.
 - Track additions, removals, exclusions, delisting suspicion, degradation, and restoration.
 - Keep removed instruments historically visible but inactive.
 - Support the synthetic `CRY` exchange when crypto is later admitted.
@@ -647,7 +647,7 @@ Core job types:
 
 Recommendation: a mature modular web framework suitable for one codebase with separate API and worker roles. Good candidates are Django/Python, FastAPI/Python with a disciplined service layer, or Spring Boot/Kotlin/Java if the owner prefers the JVM.
 
-Preferred initial choice: Django with Django REST Framework if starting from scratch in Python.
+Confirmed initial choice: Django with Django REST Framework.
 
 Why it fits:
 
@@ -669,7 +669,7 @@ Tradeoffs accepted:
 
 ### Database
 
-Recommendation: PostgreSQL.
+Recommendation: PostgreSQL inside the Docker Compose/VPS deployment.
 
 Why it fits:
 
@@ -677,6 +677,7 @@ Why it fits:
 - Handles daily historical records well at expected scale.
 - Supports indexing, partitioning if needed, materialized views, and transactional publication updates.
 - Easy to run on a VPS.
+- Managed PostgreSQL is out of scope for launch and future planning under the current product constraints.
 
 Alternatives considered:
 
@@ -710,7 +711,7 @@ Tradeoffs accepted:
 
 ### Background Jobs / Queue
 
-Recommendation: lightweight queue with persistent job records. For Django, use Celery with Redis if acceptable, or a PostgreSQL-backed queue such as django-q/pg-boss-style equivalent depending on stack maturity and owner preference.
+Recommendation: Django-Q2 with the PostgreSQL ORM broker at launch, using explicit job state, retries, idempotency keys, and operator-visible outcomes. Do not introduce Redis at launch.
 
 Why it fits:
 
@@ -729,13 +730,17 @@ Tradeoffs accepted:
 
 ### External Integrations
 
-Recommendation: provider adapter interface over multiple free or free-tier market-data sources, plus exchange-calendar data.
+Recommendation: provider adapter interface over an exchange-agnostic pool of free or free-tier market-data sources, plus exchange-calendar data.
 
 Why it fits:
 
 - Product requires source diversity.
 - Adapters isolate provider quirks and allow replacement.
 - Source-prioritization stays centralized.
+- Providers should be selected for reusable coverage across current and future exchanges, not as one-off integrations for NYSE, Nasdaq, or Prague Stock Exchange.
+- `yfinance` must be included in the candidate source pool.
+- FinceptTerminal should be used as inspiration for candidate connector discovery, especially its stated use of broad data connectors such as Yahoo Finance, Polygon, FRED, IMF, World Bank, DBnomics, AkShare, government APIs, and related market-data/broker integrations.
+- Initial provider validation matrix should include: `yfinance`, Stooq/pandas-datareader, Nasdaq Data Link/free datasets, Alpha Vantage, Twelve Data, Financial Modeling Prep, Finnhub, Tiingo, Polygon free tier, EODHD/free tier, Marketstack/free tier, OpenFIGI for identifiers, DBnomics, FRED, World Bank, IMF, AkShare, and official exchange downloads as reference/validation sources rather than preferred primary adapters.
 
 Alternatives considered:
 
@@ -745,6 +750,12 @@ Alternatives considered:
 Tradeoffs accepted:
 
 - Free sources can be unstable, so the system must invest in quality checks and provider observability.
+- Candidate providers remain untrusted until tested against completeness, correctness, timeliness, cost, terms, and rate-limit constraints.
+- Official exchange websites/downloads may be used as validation/reference sources, but the preferred backend loading model is reusable exchange-agnostic adapters.
+
+### Exchange Calendars
+
+Recommendation: use an exchange-agnostic calendar validation flow. For every exchange added now or in the future, first try `pandas-market-calendars` as the primary calendar library. During exchange onboarding, compare the library's open/closed days against the official exchange calendar for the validation window and keep manual override records for holidays, special closures, late opens, or source gaps. Add a custom calendar adapter only when the library is missing the exchange or mismatches official dates.
 
 ### Authentication / Session Model
 
@@ -789,7 +800,7 @@ Tradeoffs accepted:
 
 ### Deployment / Hosting
 
-Recommendation: single VPS deployment with reverse proxy, API process, worker process, PostgreSQL, backups, and log/metric collection.
+Recommendation: single VPS deployment using Docker Compose for the Django API, worker/scheduler, reverse proxy, PostgreSQL, backups, and log/metric collection. Use systemd only as the host-level supervisor/timer layer where useful.
 
 Why it fits:
 
@@ -929,6 +940,8 @@ Key relationships:
 
 - An exchange has many listings and exchange-day loads.
 - An instrument may have many candidate listings, but only one chosen supported listing is app-visible under the global primary/best-listing policy.
+- Exchanges have a derived activity-priority rank based on trailing 60 trading-day average total traded value across supported/candidate listings, normalized to USD/EUR-equivalent for cross-market comparison. This rank is used as the final tie-breaker for multi-listed instruments, is recomputed during exchange validation and periodically, initially monthly, and automatically incorporates newly added exchanges.
+- Each exchange has a fixed benchmark sample for correctness checks, selected from the top 20 most active supported instruments by trailing 60 trading-day traded value. Candidate lists refresh during exchange validation and monthly review, but the active benchmark set remains stable unless a benchmark becomes invalid or delisted. Benchmark instruments are manually protected from automatic exclusion unless explicitly removed.
 - A supported listing has many price records.
 - Price records feed signal statistics and signal events.
 - Exchange-day publication covers eligible supported listings for that exchange/day.
@@ -1052,6 +1065,8 @@ Mitigations:
 - Batch inserts/upserts.
 - Proper indexes on instrument/date/type and exchange/day/status.
 - Idempotent resumable backfill.
+- Daily production refresh jobs always take priority over historical backfill jobs.
+- Historical backfill throttling should be resolved during implementation based on provider validation and the agreed target of completing a 30-day backfill for the supported launch universe in under 30 minutes, while allowing slower execution if providers rate-limit.
 - Optional table partitioning by date if history grows materially.
 
 ### Measurement Approach
@@ -1088,6 +1103,10 @@ Track:
 - Do not store secrets in source control.
 - Avoid logging credentials, tokens, or provider keys.
 - Keep off-machine backups protected.
+
+### Backups
+
+Recommendation: keep backups frugal at launch. Create automated daily PostgreSQL dumps plus file/config backups on the VPS, overwriting the previous local backup so only one backup copy is stored on VPS disk. Off-machine backups are manual, ad hoc, and unencrypted. Because off-machine backups are not automated, the operator dashboard should expose the latest successful local backup timestamp and the latest recorded off-machine copy timestamp.
 
 ### Abuse Prevention
 
@@ -1190,24 +1209,20 @@ Potential future boundaries:
 
 These should remain internal modules until there is a concrete reason to pay the distributed-system cost.
 
-### Deferred Decisions
+### Implementation Validation Outputs
 
-- Exact provider list and priority order.
-- Exact market-calendar implementation.
-- Exact exclusion thresholds for obscure/problematic instruments.
-- Exact job queue library.
-- Redis adoption.
-- Crypto admission and venue-selection implementation.
-- Managed database adoption.
+- Provider validation results for the full exchange-agnostic candidate pool.
+- Custom calendar adapters, created only when the exchange-agnostic calendar validation flow shows `pandas-market-calendars` is missing or mismatches an exchange.
 
 ### Redesign Triggers
 
 Revisit the architecture if:
 
 - A single VPS cannot meet load windows even after worker tuning.
-- PostgreSQL read/write performance becomes a recurring bottleneck.
+- PostgreSQL read/write performance becomes a recurring bottleneck that requires tuning within the VPS/Compose PostgreSQL deployment.
 - Provider rate limits require more complex orchestration.
 - App traffic grows beyond database-backed read-model capacity.
+- Redis becomes justified by measured worker latency, PostgreSQL lock/contention issues, read-model latency, app refresh spikes, or cacheable bootstrap/current-day response bottlenecks.
 - Multiple maintainers need independent release ownership.
 - Crypto or global exchange expansion changes the data model materially.
 - Operational recovery expectations exceed what a VPS-first setup can provide.
@@ -1227,25 +1242,7 @@ Revisit the architecture if:
 
 ## 17. Open Questions
 
-### Business Questions
-
-- What exact threshold defines persistently low turnover for exclusion?
-- What exact stale/missing-data rule excludes problematic instruments before delisting suspicion?
-- What exchange priority order should break primary-listing ties?
-- Which benchmark instruments should be used for correctness checks per exchange?
-- What exact source priority order should be used at launch?
-- What conditions make a degraded production exchange eligible for normal status again?
-- What criteria must crypto meet before admission under `CRY`?
-
-### Technical Questions
-
-- Which backend stack will the owner prefer for long-term maintenance: Django, FastAPI, Spring Boot, or another mature framework?
-- Which free data providers are acceptable for NYSE, Nasdaq, and PSE at launch?
-- Which exchange-calendar source should be authoritative?
-- Should the queue be PostgreSQL-backed initially, or should Redis be introduced from day one for job processing?
-- What is the exact backup schedule and off-machine backup process?
-- What deployment mechanism should be used on the VPS: systemd services, Docker Compose, or another simple process manager?
-- What historical backfill rate limits are acceptable for each provider?
+No currently unresolved architecture questions remain blocking implementation planning. Remaining provider and calendar outputs are listed in Section 15 and are expected to be produced during implementation validation.
 
 ## 18. Risks
 

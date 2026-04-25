@@ -74,17 +74,18 @@ For the product/operator, the value is:
   - Statistical inputs and derived statistics used to determine whether an event happened
 - The backend must support an initial fill capability to populate historical data before steady-state operation.
 - Initial fill must produce a complete historical baseline across prices, signal events, and supporting statistics.
-- Coverage starts from admin-defined exchanges and admin-defined instrument types such as stock, ETF, ETN, and crypto.
+- Coverage starts from admin-defined exchanges and admin-defined instrument types. Launch coverage is stocks, ETFs, and ETNs; crypto is reserved for future expansion.
 - Instruments are loaded automatically based on those admin-defined coverage specifications.
 - Initial instrument population, additions, and removals should be handled automatically within the selected scope.
 - If a company is listed on multiple exchanges, the backend should generally include only one listing.
-- Listing selection should follow a defined global primary/best-listing policy.
-- The instrument-selection algorithm may exclude obscure or problematic instruments using quality or relevance criteria such as turnover.
+- Listing selection should follow a defined global primary/best-listing policy. After home exchange and listing-level turnover, remaining ties should be broken by an automatically derived exchange activity priority based on trailing 60 trading-day average total traded value across supported/candidate listings, normalized to USD/EUR-equivalent for cross-market comparison. The ranking should be recomputed during exchange validation and periodically, initially monthly, so larger exchanges are favored and newly added exchanges are incorporated automatically.
+- The instrument-selection algorithm may exclude obscure or problematic instruments using the confirmed launch rule: low-turnover exclusion after a 60 trading-day review window below the launch traded-value threshold, stale/missing-data exclusion after missing or invalid prices on 3 of the last 10 expected trading days, and protected benchmark exceptions when needed for correctness checks.
 - The app should see only the supported universe, while exclusions remain visible only in admin reporting.
 - Newly admitted instruments should be exposed to the app immediately for price data, even if they do not yet have enough history for signal generation.
-- If an instrument is delisted, it should be removed from the supported universe after a buffer period.
+- If an instrument is delisted or under confirmed delisting suspicion, it should be removed from the supported universe after a 5 expected trading-day buffer, excluding weekends and exchange holidays.
 - When an instrument leaves the supported universe, its historical prices, signals, and supporting statistics should be retained, but it should no longer be updated.
 - Instrument additions, removals, degradations, and exclusions should be captured with lightweight change history and explicit reason codes.
+- Universe-change and exclusion reporting should show effective day, event type, instrument, exchange, instrument type, reason, details, old state, and new state. It should support filtering by event type and optionally by exchange and instrument.
 - If an exchange is closed for a given day, no price-based computation should happen for that instrument on that day.
 - If price data is missing due to a load failure or backend problem, that is considered a backend failure rather than acceptable missing data.
 - The app should use exchange-level readiness to know whether current-day data is ready for consumption.
@@ -93,13 +94,19 @@ For the product/operator, the value is:
 - Post-publication corrections are allowed only as rare exceptions through explicit backend recomputation or reprocessing.
 - The app does not need special correction propagation; current state matters most there and history is primarily used for charts.
 - Multiple free data sources should be used primarily to maximize availability.
-- When multiple candidate values exist, the backend should resolve them through one global source-prioritization policy.
+- When multiple candidate values exist, the backend should resolve them through one global source-prioritization policy: historical reliability, then ratio of historical prices available for that instrument from that source, then exchange coverage quality, then fixed source order as the final tie-breaker.
 - New exchanges should be added only after passing short-window pre-production validation proving acceptable instrument discovery quality, primary-listing selection, and daily and historical load completeness/timeliness.
 - If a supported exchange experiences repeated quality issues, it should remain supported but be marked internally as degraded while investigated.
 - Historical results should remain stable by default. Historical recomputation should happen only as an explicit action.
 - Changes to the signal algorithm should be validated against historical data before production rollout.
 - Data quality is the primary SLA. Timeliness matters within a defined daily window because the service is daily rather than intraday.
 - Timely publication means data should be ready within 30 minutes.
+- The confirmed business SLA baseline is:
+  - Completeness: exchange/day publication requires greater than 99% coverage.
+  - Correctness: benchmark mismatch rate above 5% creates a correctness issue.
+  - Timeliness: daily publication should usually occur within 30 minutes of the relevant market event window.
+  - Consistency: historical published outputs remain stable unless explicit reprocessing is performed.
+  - Instrument gaps: missing prices count as backend failures unless the market is closed or delisting-suspicion rules apply.
 
 ## 8. Constraints
 
@@ -159,13 +166,7 @@ Key tradeoffs:
 
 ## 12. Open Questions
 
-- What exact SLA thresholds define acceptable completeness, correctness, timeliness, and consistency by exchange/day and by instrument?
-- What exact business rules determine the "primary/best listing" for multi-listed companies?
-- How long is the delisting buffer period before an instrument is removed from the supported universe?
-- What exact criteria should instrument-selection filters use for excluding obscure or problematic instruments?
-- What business reporting fields should be visible for exclusions and universe changes?
-- How should crypto venue selection be curated when a single asset may trade across many venues?
-- What exact source-prioritization policy should resolve conflicting candidate values?
+No currently unresolved business questions remain blocking for product or architecture specification.
 
 ## 13. Risks and Uncertainties
 
@@ -173,7 +174,7 @@ Key tradeoffs:
 - Data-source inconsistencies may undermine trust if opening or closing values are not aligned across markets.
 - Free-tier limits or source instability may threaten completeness and timeliness unless source diversification is robust enough.
 - Exchange-calendar handling may be more complex than expected across global markets.
-- Crypto market conventions may not fit perfectly into the same operating assumptions as traditional securities.
+- Crypto market conventions may not fit perfectly into the same operating assumptions as traditional securities if crypto is added in a future expansion.
 - If load failures are frequent, the product's value proposition will be damaged because missing data is treated as a backend failure.
 - As exchange coverage expands globally, maintaining the same quality bar may become operationally difficult.
 
@@ -188,10 +189,4 @@ Key tradeoffs:
 
 ## 15. Recommended Next Questions for the Product Specification Agent
 
-- What exact outputs must the mobile app be able to request for prices, signals, reasoning context, and exchange readiness?
-- What admin inputs are required to define the curated universe of exchanges and instrument types?
-- What are the concrete lifecycle states for instruments, especially active, signal-not-ready, market-closed, degraded, delisted-buffer, and removed?
-- What are the exact business acceptance rules for exchange/day publication based on completeness, correctness, timeliness, and consistency?
-- What precise fields should appear on the operator dashboard for daily and historical loads by exchange, including status, timing, quality, and exceptions?
-- What exact validation checks should new exchanges pass before moving from trial to production support?
-- What business definitions should govern coverage and listing selection for multi-listed companies and for crypto assets?
+No currently unresolved recommended product-specification questions remain. Earlier recommended questions have been resolved, incorporated into `product_spec.md`, deferred as future scope, or transferred into architecture/research validation work.

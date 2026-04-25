@@ -51,7 +51,7 @@ Initial launch priority is:
 - ETFs
 - ETNs
 
-Crypto remains in overall scope but should only be introduced if it can meet the same trust bar. In this specification, `crypto` refers to cryptocurrencies themselves, not crypto ETFs.
+Crypto is not part of launch scope and is reserved for future expansion. If introduced later, it should only be admitted if it can meet the same trust bar. In this specification, `crypto` refers to cryptocurrencies themselves, not crypto ETFs.
 
 ## 2. Use Cases
 
@@ -99,7 +99,7 @@ Primary flow:
 3. The system selects a single primary or best listing for multi-listed companies using this precedence:
    - home exchange
    - highest turnover
-   - fixed exchange priority
+   - automatically derived exchange activity priority
 4. The system excludes instruments that fail selection or quality/relevance criteria.
 5. The system exposes only the final supported universe to the app.
 6. The system continues to add and remove instruments automatically over time.
@@ -141,8 +141,14 @@ Primary flow:
 - FR-6: The global primary/best-listing policy must rank candidate listings in this order:
   - home exchange
   - highest turnover
-  - fixed exchange priority
-- FR-7: The system must support automatic exclusion of obscure or problematic instruments based on selection criteria such as persistently low turnover and stale or missing data.
+  - automatically derived exchange activity priority based on trailing 60 trading-day average total traded value across supported/candidate listings, normalized to USD/EUR-equivalent for cross-market comparison
+- FR-6a: The system must recompute exchange activity priority during exchange validation and periodically, initially monthly, so larger and more active exchanges are prioritized and newly added exchanges enter the priority order automatically.
+- FR-7: The system must support automatic exclusion of obscure or problematic instruments using the launch exclusion rule:
+  - Low-turnover exclusion applies only after a 60 trading-day review window.
+  - For NYSE and Nasdaq, the initial low-turnover threshold is median daily traded value below USD 100,000.
+  - For Prague Stock Exchange, the initial threshold is the local-currency equivalent of USD 100,000, adjusted after trial validation if needed.
+  - Stale/missing-data exclusion applies when an instrument has missing or invalid prices on 3 of the last 10 expected trading days, unless the instrument is already covered by the 2-day delisting-suspicion rule.
+  - Manually protected benchmark instruments may be exempted from automatic exclusion when needed for correctness checks.
 - FR-8: The system must expose only the supported universe to the app.
 - FR-9: The system must record instrument additions, removals, exclusions, and degradations with explicit reasons in a lightweight historical record.
 - FR-10: When an instrument leaves the supported universe, the system must stop updating it but retain its stored history subject to overall retention rules.
@@ -254,6 +260,7 @@ Primary flow:
 - FR-53: The `details` field may be optional and should be populated when the reason alone is not sufficient to explain the change.
 - FR-54: The operator view must support visibility into exclusions and supported-universe changes.
 - FR-55: If a production exchange repeatedly misses the quality bar, the system must keep it supported but represent it internally as degraded while investigation is ongoing.
+- FR-55a: A degraded production exchange becomes eligible for normal status after 3 consecutive expected trading days meeting all SLA baselines: greater than 99% coverage, benchmark mismatch rate at or below 5%, publication within the 30-minute target, and no unresolved provider/calendar incident affecting that exchange. Operator override is allowed for exceptional cases.
 
 ### 3.7 Validation and Change Governance
 
@@ -285,7 +292,7 @@ Primary flow:
   - consistency
 - NFR-4: Exchange/day publication must require greater than 99% completeness for eligible instruments.
 - NFR-5: Instrument-level gaps must influence exchange/day quality assessment even though publication is exchange-scoped.
-- NFR-6: Correctness must be evaluated at the exchange level using a small but statistically significant fixed benchmark sample per exchange, focused on important instruments.
+- NFR-6: Correctness must be evaluated at the exchange level using a small fixed benchmark sample per exchange, selected from the top 20 most active supported instruments by trailing 60 trading-day traded value. Candidate lists refresh during exchange validation and monthly review, but the active benchmark set remains stable unless a benchmark becomes invalid or delisted.
 - NFR-7: An exchange/day correctness issue exists when benchmark mismatches exceed 5%.
 - NFR-8: If trusted reference data is delayed, exchange/day publication may proceed and correctness validation may be completed afterward.
 
@@ -546,8 +553,8 @@ No currently unresolved questions are considered blocking for system specificati
 - AC-1: The system supports NYSE, Nasdaq, and Prague Stock Exchange as initial production exchanges.
 - AC-2: The system exposes only supported instruments to the app.
 - AC-3: The system automatically discovers and maintains instruments within admin-selected exchanges and instrument types.
-- AC-4: The system applies the primary/best-listing selection rule in this order: home exchange, highest turnover, fixed exchange priority.
-- AC-5: The system can exclude instruments with persistently low turnover or stale/missing data.
+- AC-4: The system applies the primary/best-listing selection rule in this order: home exchange, highest turnover, automatically derived exchange activity priority.
+- AC-5: The system excludes low-turnover instruments after a 60 trading-day review window when median daily traded value is below the launch threshold, and excludes stale/missing-data instruments after missing or invalid prices on 3 of the last 10 expected trading days, with protected benchmark exceptions allowed.
 - AC-6: The system stores historical closing prices and current-day opening prices.
 - AC-7: The system performs initial historical fill and generates historical prices, signal events, and supporting statistics.
 - AC-8: The system computes only `Dip` and `Skyrocket` backend signals.
@@ -567,7 +574,7 @@ No currently unresolved questions are considered blocking for system specificati
 - AC-22: The universe-change and exclusion dashboard supports at least these event types: `added`, `removed`, `excluded`, `delisting_suspected`, `delisted_removed`, `restored`, `degraded`, and `degradation_cleared`.
 - AC-23: Each universe-change and exclusion row shows at minimum effective day, event type, instrument, exchange, instrument type, reason, details, old state, and new state.
 - AC-24: The system uses the agreed global source-prioritization order when candidate values conflict.
-- AC-25: Exchange-level correctness can be evaluated using a small but statistically significant benchmark sample focused on important instruments, with a 5% mismatch threshold.
+- AC-25: Exchange-level correctness can be evaluated using a small fixed benchmark sample selected from the top 20 most active supported instruments by trailing 60 trading-day traded value, with manual protection from automatic exclusion and a 5% mismatch threshold.
 - AC-26: The system supports short-window validation for onboarding a new exchange.
 - AC-27: A new exchange cannot be promoted to production until discovery quality, primary-listing selection behavior, and daily/historical load completeness and timeliness are validated.
 - AC-28: The system supports explicit exceptional reprocessing of published data.

@@ -33,7 +33,6 @@ You must:
 - Ask questions one at a time unless several are tightly related
 - Provide a provisional recommended answer when useful
 - Update the relevant source files after the user answers
-- Update or create `decision-log.md`
 - Preserve traceability between the question, user answer, and document update
 
 ---
