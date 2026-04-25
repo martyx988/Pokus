@@ -740,7 +740,38 @@ Why it fits:
 - Providers should be selected for reusable coverage across current and future exchanges, not as one-off integrations for NYSE, Nasdaq, or Prague Stock Exchange.
 - `yfinance` must be included in the candidate source pool.
 - FinceptTerminal should be used as inspiration for candidate connector discovery, especially its stated use of broad data connectors such as Yahoo Finance, Polygon, FRED, IMF, World Bank, DBnomics, AkShare, government APIs, and related market-data/broker integrations.
-- Initial provider validation matrix should include: `yfinance`, Stooq/pandas-datareader, Nasdaq Data Link/free datasets, Alpha Vantage, Twelve Data, Financial Modeling Prep, Finnhub, Tiingo, Polygon free tier, EODHD/free tier, Marketstack/free tier, OpenFIGI for identifiers, DBnomics, FRED, World Bank, IMF, AkShare, and official exchange downloads as reference/validation sources rather than preferred primary adapters.
+- All candidate providers listed below must be tested during implementation validation because many are expected to fail completeness, speed, cost, terms, rate-limit, or exchange-coverage requirements.
+
+#### Provider Validation Candidate Pool
+
+Core market-data candidates:
+
+- `yfinance`
+- Stooq/pandas-datareader
+- Nasdaq Data Link/free datasets
+- Alpha Vantage
+- Twelve Data
+- Financial Modeling Prep
+- Finnhub
+- Tiingo
+- Polygon free tier
+- EODHD/free tier
+- Marketstack/free tier
+- AkShare
+
+Identifier and macro/reference candidates:
+
+- OpenFIGI for identifiers
+- DBnomics
+- FRED
+- World Bank
+- IMF
+
+Validation/reference sources:
+
+- Official exchange downloads and official exchange websites as reference/validation sources rather than preferred primary adapters.
+
+Each candidate should be assessed for daily open/close prices, historical prices, volume/turnover, instrument discovery, identifiers, exchange-calendar support, completeness, correctness, timeliness, speed, cost, terms, rate limits, exchange coverage, implementation effort, and operational reliability.
 
 Alternatives considered:
 
