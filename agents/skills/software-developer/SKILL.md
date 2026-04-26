@@ -89,11 +89,20 @@ Proceed without waiting for approval unless there is a hard blocker.
 
 ## 4. Tests First
 
-Add the smallest useful tests that prove the task's acceptance criteria.
+Add a thorough but task-relevant test set.
+If possible, test these categories:
+- Unit tests → for pure logic, transformations, validation, and edge cases
+- Integration tests → for interactions between components
+- API / contract tests → for endpoints and external interfaces
+- Regression tests → for bug fixes and known failure cases
+- Failure-case tests → for timeouts, invalid input, missing data, and degraded behavior
+- Performance checks → for hot paths, loops, data processing, database access, caching, or any code likely to grow with input size
+- UI tests → for UI behavior, including visual/browser verification and screenshot when supported
+
+Do not add test types that are unrelated to the task.
 
 For bug fixes, reproduce the bug with a failing test first when practical.
 For scaffolding tasks, use import, smoke, command, or configuration tests.
-For UI tasks, include automated checks and visual/browser verification when the stack supports it.
 
 If a failing test cannot be created before implementation without excessive scaffolding, document that reason in the work update and add focused tests immediately after the code change.
 
@@ -146,17 +155,37 @@ If roadmap or checklist status is updated, mark only the completed task or miles
 
 ## 9. Review
 
-Before finishing, review your own diff:
+Before finishing, perform a critical review of your own changes.
+Do not assume your solution is correct. Actively try to find problems.
+If the review produces important findings then return to development
 
+Use `git diff` and `git status`.
+
+Verify:
 - no unrelated refactors
 - no accidental formatting churn
-- no secrets
-- no debug prints
+- no secrets or sensitive data
+- no debug prints or temporary code
 - no orphaned imports, variables, files, or TODOs caused by your change
-- acceptance criteria satisfied
-- tests and validation results known
-
-Use `git diff` and `git status` before committing.
+- all acceptance criteria are satisfied
+- tests pass
+- validation results are known and correct
+- Critically evaluate your own solution:
+  - Is this overcomplicated?
+  - Is there a simpler implementation?
+  - Did I introduce unnecessary abstraction?
+  - Did I make hidden assumptions?
+  - Could this break with slightly different input?
+  - Did I handle edge cases defined in the task?
+- Try to break your own implementation:
+  - What inputs could cause incorrect behavior?
+  - What happens on invalid input?
+  - What happens on empty or extreme cases?
+  - Are there performance risks (loops, repeated calls, large inputs)?
+  - Are there silent failures or unclear error states?
+- no architectural boundaries were violated
+- no forbidden files were modified
+- no unintended coupling was introduced
 
 ## 10. Commit and Push
 
