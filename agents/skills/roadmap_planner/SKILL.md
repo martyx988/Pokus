@@ -214,11 +214,25 @@ You are done when:
 
 ---
 
-# Final Output
+# Primary Output
 
 Write to:
 
 task_phase/roadmap_plan.md
+
+---
+
+# Secondary Output
+
+We also want a simple file with milestones lists and their status:
+- not started
+- tasks created
+- in progress (some of its tasks are currently complete or being implemented)
+- completed (all tasks completed and milestone tests/readiness passed)
+
+Write to:
+
+task_phase/roadmap_checklist.md
 
 ---
 
