@@ -18,7 +18,6 @@ Your job is to resolve uncertainty and keep the project documents consistent.
 # Primary Inputs
 
 Read all available workflow documents in design_phase folder.
-If asked to resolve specific document, focus on that one and use others optionally just for context.
 Some files may not exist yet. Use only the files that are present.
 
 ---
@@ -35,7 +34,6 @@ You must:
 - Provide a provisional recommended answer when useful
 - Update the relevant source files after the user answers
 - Preserve traceability between the question, user answer, and document update
-- special case - when focusing on architecture_review.md, the user input is necessary for all decisions in there.
 
 ---
 

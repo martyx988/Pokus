@@ -636,15 +636,19 @@ For this system, the following are the clearest overengineering risks:
 - Expected active usage can be approximated as around 3,000 daily active users, roughly 200 peak concurrent refreshes, and low-to-moderate request volume with short spikes around daily refresh windows.
 - Operator dashboards live on the VPS backend and are accessed privately through an SSH tunnel from the owner's home PC.
 - The alert algorithm is moderate in computational cost and suitable for routine daily processing.
-- Recovery expectations imply no more than 15 minutes of acceptable data loss and that more than 15 minutes of unavailability is concerning.
-- Backup expectations are frugal: automated daily PostgreSQL dumps plus file/config backups on the VPS, overwriting the previous local backup so only one local backup copy is stored, plus manual ad hoc unencrypted off-machine backup copies.
+- Launch recovery expectations are frugal: tolerate up to 24 hours of data loss for historical and backoffice data after severe infrastructure failure, and target restoration within 24 hours after VPS loss.
+- Backup expectations are frugal: automated daily PostgreSQL dumps plus file/config backups on the VPS, overwriting the previous local backup so only one local backup copy is stored, plus manual off-machine backup copies at least weekly.
+- Restore should be tested before launch and after meaningful schema changes.
 
 ### Unclear or Missing Inputs
 
 - Additional research is required to prepare an exchange-agnostic market-data source candidate pool for backend ingestion. This should not be limited to NYSE, Nasdaq, or Prague Stock Exchange.
+- The design-phase goal is to accumulate a broad free-source candidate pool, not to choose final production providers.
+- Prague Stock Exchange is a mandatory launch exchange, so source discovery and validation must continue iterating until PSE can meet the same trust bar as NYSE and Nasdaq.
 - The candidate pool must include `yfinance`.
 - FinceptTerminal should be reviewed as inspiration for source discovery because it advertises broad connector coverage, including Yahoo Finance, Polygon, FRED, IMF, World Bank, DBnomics, AkShare, government APIs, and broker/market-data integrations.
 - The initial validation matrix should include: `yfinance`, Stooq/pandas-datareader, Nasdaq Data Link/free datasets, Alpha Vantage, Twelve Data, Financial Modeling Prep, Finnhub, Tiingo, Polygon free tier, EODHD/free tier, Marketstack/free tier, OpenFIGI for identifiers, DBnomics, FRED, World Bank, IMF, AkShare, and official exchange downloads as reference/validation sources rather than preferred primary adapters.
-- All listed candidate sources should be tested during validation, because many are expected to fail completeness, speed, cost, terms, rate-limit, or exchange-coverage requirements. Failed candidates are useful validation outcomes, not wasted effort.
+- All listed candidate sources should be tested during validation, because many are expected to fail individual completeness, speed, cost, rate-limit, or exchange-coverage requirements. Failed or partial candidates are useful validation outcomes, not wasted effort.
+- A candidate source can still be valuable if it reliably covers only part of the universe, part of the daily window, or part of the required data types. The final loading algorithm should be judged on aggregate coverage, speed, quality, and robustness across combined sources.
 - The research output should be a validation matrix of free sources, APIs, and Python libraries that may support daily open/close prices, historical prices, volume/turnover, instrument discovery, identifiers, and exchange-calendar support across current and future exchanges.
-- Each candidate source should be assessed later against completeness, correctness, timeliness, speed, cost, terms, rate limits, exchange coverage, implementation effort, and operational reliability.
+- Each candidate source should be assessed later against completeness, correctness, timeliness, speed, cost, rate limits, exchange coverage, implementation effort, operational reliability, and how well it complements other sources.

@@ -13,22 +13,23 @@ The biggest risks are external data reliability, the real complexity of global u
 ### 1. Free data sources may not meet the trust bar
 
 - **Issue**: The design depends on multiple free or free-tier providers for opening prices, historical closes, volume/turnover, instrument discovery, identifiers, and validation.
-- **Why it matters**: The product requires greater than 99% coverage, correctness checks, publication within 30 minutes, and stable historical records. Free sources frequently have delays, incomplete exchange coverage, changing formats, rate limits, licensing ambiguity, adjusted/unadjusted differences, and weak discovery data.
+- **Why it matters**: The product requires greater than 99% coverage, correctness checks, publication within 30 minutes, and stable historical records. Free sources frequently have delays, incomplete exchange coverage, changing formats, rate limits, adjusted/unadjusted differences, and weak discovery data.
 - **Impact**: Daily publication failures, false readiness, incorrect signals, excessive operator investigation, or forced scope reduction.
 - **Where it appears**: Market Data Provider Adapter Layer, Ingestion Module, Performance Strategy, Risks, product FR-17 through FR-19, NFR-11, NFR-14.
 
-### 2. Opening price semantics are under-specified
+### 2. Opening price semantics require strict implementation
 
-- **Issue**: The architecture treats "current-day opening price" as a straightforward datum, but providers may disagree on official open, first traded price, delayed open, auction open, adjusted prices, currency, timezone, and handling of halted or suspended instruments.
+- **Issue**: Resolver decision now defines the authoritative price semantics, but implementation must enforce them consistently across providers.
+- **Resolved decision**: Current-day evaluation uses the official exchange-local unadjusted open. Historical records use adjusted close. Each stored price record must include its currency. Halted, suspended, or late-open instruments are marked pending or failed according to load rules rather than assigned an invented fallback price.
 - **Why it matters**: Signals are based on the opening price. If the opening price is inconsistent, the system can generate false `Dip` and `Skyrocket` events while still appearing operationally healthy.
 - **Impact**: Bad signals and loss of user trust despite high apparent coverage.
 - **Where it appears**: Ingestion Module, Signal Generation Module, Source prioritization, API Current-Day Prices.
 
-### 3. Publication can proceed before correctness validation completes
+### 3. Current-day publication must wait for correctness validation
 
-- **Issue**: The architecture says publication may proceed if trusted benchmark data is delayed, with correctness validation completed afterward.
-- **Why it matters**: This weakens the meaning of "ready" as trusted app-consumable data. It creates a state where completeness is satisfied but correctness is unknown.
-- **Impact**: The app can consume and display incorrect daily data before the system knows whether the benchmark check passed.
+- **Resolved item**: Current-day opening-price publication must wait for successful correctness validation. If validation is delayed or fails, the affected exchange/day remains unpublished and the condition must be immediately visible in operator dashboards and logs.
+- **Why it matters**: Opening prices drive alert triggers, so `ready` must mean the current-day opening-price dataset has passed correctness validation.
+- **Implementation expectation**: Correctness-validation blocks should be true exceptions. If most exchanges are blocked routinely, the loading, validation, or source strategy has failed the product requirement.
 - **Where it appears**: Performance Strategy, Quality assumptions, product NFR-8.
 
 ### 4. Job correctness is mission-critical but still abstract
@@ -52,11 +53,11 @@ The biggest risks are external data reliability, the real complexity of global u
 - **Impact**: Extended outage, data loss beyond acceptable expectations, or inability to reconstruct published history.
 - **Where it appears**: Deployment / Hosting, Security and Access Control, Backups, Availability assumptions.
 
-### 7. Reprocessing can undermine historical stability
+### 7. Historical close reprocessing can undermine historical stability
 
-- **Issue**: The architecture allows explicit reprocessing but does not define versioning, audit granularity, app-visible correction semantics, or how read models and signal histories are invalidated and rebuilt.
-- **Why it matters**: Historical stability is a core product promise. Reprocessing is the exception path most likely to violate it.
-- **Impact**: Conflicting historical records, changed signals without traceability, operator uncertainty, and app charts changing without clear cause.
+- **Issue**: The architecture allows explicit historical adjusted-close reprocessing, while signal algorithm changes are prospective after launch and bad current-day opening-price publication should be prevented rather than repaired through normal reprocessing.
+- **Why it matters**: Historical stability is a core product promise. Even narrowed historical close correction can create confusion if audit evidence and app correction sync are weak.
+- **Impact**: Conflicting historical records, app charts changing without clear cause, operator uncertainty, or weak traceability for corrected historical values.
 - **Where it appears**: Publication Module, Read Model Builder, Admin Commands, Failure Handling, product FR-36 and FR-58 through FR-60.
 
 ## Overengineering Flags
@@ -95,37 +96,37 @@ The biggest risks are external data reliability, the real complexity of global u
 
 ### 1. Exact market-data semantics
 
-- **Missing / unclear item**: Whether prices are adjusted or unadjusted; official open versus first trade; handling halted, suspended, auction-delayed, split-adjusted, or currency-converted instruments.
+- **Resolved item**: Current-day evaluation uses official exchange-local unadjusted open. Historical records use adjusted close. Each stored price record includes currency. Halted, suspended, or late-open instruments are marked pending or failed according to load rules rather than assigned an invented fallback price.
 - **Why it matters**: Signals and correctness checks need a precise definition of the data being trusted.
 - **Affected area**: Ingestion, source prioritization, signal generation, correctness validation.
 
-### 2. Provider trust and licensing policy
+### 2. Provider candidate policy
 
-- **Missing / unclear item**: Which free sources are legally and operationally acceptable for production app use.
-- **Why it matters**: A technically available source may not be safe or stable for production redistribution.
+- **Resolved item**: The design phase should accumulate a broad pool of free candidate sources rather than choose final production providers. Licensing review is not a gating policy in this design; use workable free sources where they can contribute to the combined loading algorithm.
+- **Why it matters**: Individual free sources are expected to be incomplete, rate-limited, or slow. The production bar applies to the aggregate loading algorithm across complementary sources, not to each source in isolation.
 - **Affected area**: Provider adapters, cost model, business risk.
 
 ### 3. Job state machine
 
-- **Missing / unclear item**: Concrete states, transitions, retry limits, timeout rules, crash recovery, lock expiry, and manual override behavior.
+- **Resolved item**: Jobs use `queued`, `running`, `retry_wait`, `succeeded`, `failed`, `cancelled`, and `stale_abandoned`. Only `succeeded`, `failed`, and `cancelled` are terminal for publication logic. Jobs have bounded retries, provider/request timeouts, idempotency keys, and heartbeat or lock expiry for crashed-worker recovery. Operator-visible manual actions may retry, cancel, or mark failed, with a required reason.
 - **Why it matters**: Publication readiness depends on job terminality.
 - **Affected area**: Worker, ingestion, publication, operator dashboard.
 
 ### 4. Reprocessing audit model
 
-- **Missing / unclear item**: Before/after value retention, signal invalidation, publication versioning, admin approval, and app read behavior during rebuild.
+- **Resolved item**: Reprocessing scope is narrowed. After app launch, signal algorithm changes apply prospectively only and must not rewrite app-delivered alerts. Retrospective signal recomputation is allowed only in development and pre-launch validation. Historical adjusted-close corrections may be explicitly reprocessed and picked up by the app through a routine once-daily correction sync. Bad current-day opening-price publication is treated as a prevention and quality-hardening failure rather than a normal reprocessing workflow.
 - **Why it matters**: Explicit reprocessing is both necessary and dangerous.
 - **Affected area**: Admin commands, publication, read models, historical stability.
 
 ### 5. Backup and restore objectives
 
-- **Missing / unclear item**: RPO, RTO, restore test frequency, off-machine backup schedule, encryption requirements, and database corruption response.
+- **Resolved item**: Launch recovery stays frugal: tolerate up to 24 hours of data loss for historical and backoffice data after severe infrastructure failure, target restoration within 24 hours after VPS loss, run automated daily local PostgreSQL/config/file backups, make manual off-machine backup copies at least weekly, and test restore before launch and after meaningful schema changes. If database corruption occurs, restore from the latest valid backup rather than attempting risky manual repair.
 - **Why it matters**: Production-grade trust depends on recovery, not just daily dumps.
 - **Affected area**: Deployment, operations, continuity.
 
 ### 6. Mobile API abuse expectations
 
-- **Missing / unclear item**: Realistic rate limits, client credential rotation, bot resistance, and behavior if app credentials leak.
+- **Resolved item**: Mobile credentials are app identification and throttling controls, not permanent secrets. The API uses app-level keys or signed tokens at launch, supports overlapping rotation, revocation of abused credentials, and rate limiting by IP, device/app identifier, app version, or similar available attributes. Full backend end-user accounts remain out of scope unless future user-specific backend state requires them.
 - **Why it matters**: App-level credentials are extractable from mobile clients.
 - **Affected area**: Public API, security, VPS capacity.
 
@@ -237,7 +238,8 @@ The biggest risks are external data reliability, the real complexity of global u
 ### 5. PSE can be treated like NYSE and Nasdaq with the same provider model
 
 - **Why risky**: Prague Stock Exchange coverage is likely thinner in free global sources.
-- **Impact if wrong**: Launch scope may be blocked or PSE may need special handling.
+- **Resolved fallback**: PSE is mandatory for launch and the trust bar cannot be lowered. If PSE cannot pass validation, launch remains blocked while source discovery, provider combination, adapter behavior, or validation strategy is improved until PSE can pass.
+- **Impact if wrong**: Launch may be delayed and PSE may need special source or adapter handling, but it should not be removed from launch scope or admitted under lower quality rules.
 
 ### 6. Exchange/day readiness is enough for app behavior
 
@@ -251,15 +253,4 @@ The biggest risks are external data reliability, the real complexity of global u
 
 ## Open Questions
 
-1. What exact price definition is authoritative for current-day open and historical close?
-2. Which providers are legally acceptable for production app use, not just technically accessible?
-3. What is the concrete job state machine for load, retry, terminal outcome, publication, and reprocessing?
-4. How are reprocessed records versioned, audited, and reflected in read models?
-5. What are the target RPO and RTO, and how often will restores be tested?
-6. What happens if correctness validation fails after an exchange/day was already published?
-7. How will source-prioritization reliability scores be computed, updated, and audited?
-8. How will corporate actions, splits, symbol changes, and identifier changes be handled?
-9. What is the fallback if Prague Stock Exchange cannot meet the same free-source trust bar?
-10. How will mobile API credentials be protected and rotated when they inevitably leak?
-11. What is the operational policy for an exchange that repeatedly misses the 30-minute window but meets coverage later?
-12. How much manual operator work per week is acceptable before the architecture violates the single-owner constraint?
+No remaining unresolved architecture-review questions. Operational burden should be judged by backend KPI exception volume, recurrence, and unresolved incident counts rather than manual operator time tracking.

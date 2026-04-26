@@ -11,7 +11,7 @@ The architecture is based on three existing design inputs:
 Key product constraints shaping the architecture:
 
 - Daily granularity only; no intraday monitoring.
-- Initial production scope is NYSE, Nasdaq, and Prague Stock Exchange.
+- Initial production scope is NYSE, Nasdaq, and Prague Stock Exchange; all three are mandatory for launch and must meet the same trust bar.
 - Initial instrument types are stocks, ETFs, and ETNs; crypto is deferred until it can meet the same trust bar.
 - External market-data acquisition cost should be near zero.
 - Ongoing operating cost should be limited essentially to VPS hosting.
@@ -319,8 +319,12 @@ Responsibilities:
 - Run retries and quality checks.
 - Run signal generation.
 - Run publication readiness checks.
-- Run explicit reprocessing jobs.
+- Run explicit historical adjusted-close reprocessing jobs.
 - Record job state, failures, timings, and exceptions.
+- Use explicit job states: `queued`, `running`, `retry_wait`, `succeeded`, `failed`, `cancelled`, and `stale_abandoned`.
+- Treat only `succeeded`, `failed`, and `cancelled` as terminal for publication-readiness logic.
+- Apply bounded retries, provider/request timeouts, idempotency keys, and worker heartbeat or lock expiry so crashed workers can be recovered.
+- Support operator-visible manual actions to retry, cancel, or mark failed, with a required reason.
 
 What it should not do:
 
@@ -344,7 +348,9 @@ Responsibilities:
 - Discover candidate instruments.
 - Apply primary/best-listing policy, including an automatically derived exchange activity priority for tie-breaking after home exchange and listing-level turnover.
 - Apply exclusion and quality rules, including the confirmed launch thresholds: low-turnover exclusion after a 60 trading-day review window below the launch traded-value threshold, stale/missing-data exclusion after missing or invalid prices on 3 of the last 10 expected trading days, and protected benchmark exceptions when needed for correctness checks.
-- Track additions, removals, exclusions, delisting suspicion, degradation, and restoration.
+- Track additions, removals, exclusions, delisting suspicion, degradation, restoration, symbol changes, name changes, and identifier changes.
+- Store stable provider or reference identifiers when available.
+- Flag suspected split or corporate-action anomalies for operator review rather than implementing a full corporate-action engine at launch.
 - Keep removed instruments historically visible but inactive.
 - Support the synthetic `CRY` exchange when crypto is later admitted.
 
@@ -366,10 +372,10 @@ Purpose: Isolate external free-source integrations from domain logic.
 
 Responsibilities:
 
-- Fetch historical closing prices.
-- Fetch current-day opening prices.
+- Fetch adjusted historical closing prices.
+- Fetch official exchange-local unadjusted current-day opening prices.
 - Fetch or derive discovery inputs where providers support them.
-- Normalize provider responses into internal candidate records.
+- Normalize provider responses into internal candidate records, including price currency and exchange-local trading date.
 - Record provider errors, rate limits, and data gaps.
 
 What it should not do:
@@ -390,10 +396,13 @@ Purpose: Convert provider candidates into internal price records and load outcom
 
 Responsibilities:
 
-- Load daily opening prices and historical closing prices.
+- Load official exchange-local unadjusted daily opening prices and adjusted historical closing prices.
 - Apply global source-prioritization policy.
+- Maintain provider/exchange reliability scores from validation and production outcomes.
+- Retain candidate-value audit evidence, including candidate values, selected source, and selection reason.
 - Record per-instrument success or failure.
-- Track missing data, stale values, provider disagreement, and quality findings.
+- Track missing data, stale values, provider disagreement, currency, and quality findings.
+- Mark halted, suspended, or late-open instruments pending or failed according to load rules rather than inventing fallback prices.
 - Ensure idempotent writes for each instrument/day/load type.
 
 What it should not do:
@@ -419,11 +428,13 @@ Responsibilities:
 - Generate historical events during initial fill.
 - Generate daily events when sufficient data exists.
 - Distinguish no signal from signal unavailable due to insufficient history.
+- Apply signal algorithm changes prospectively after app launch; retrospective signal recomputation is allowed only in development and pre-launch validation.
 
 What it should not do:
 
 - Evaluate app-local `Custom` alerts.
 - Modify the business logic of the existing algorithm without validation.
+- Retrospectively rewrite post-launch app alerts or signal history due to an algorithm change.
 - Generate signals when required inputs are missing.
 
 Interactions:
@@ -441,11 +452,15 @@ Responsibilities:
 - Track exchange/day lifecycle states.
 - Determine whether all eligible instruments have terminal load outcomes.
 - Compute coverage.
+- Require successful correctness validation before marking current-day opening-price publication as ready.
 - Exclude accepted delisting-suspected instruments from the denominator when allowed.
 - Apply the greater than 99% coverage threshold.
 - Track market-closed days.
 - Mark ready, partial/problematic, failed, or market closed.
-- Preserve published history unless explicit reprocessing occurs.
+- Keep an exchange/day unpublished if current-day correctness validation is delayed or failed, and surface the condition immediately in operator dashboards and logs.
+- Mark an exchange internally degraded if it misses the 30-minute publication target on 3 of the last 5 expected trading days, even if it later meets coverage and correctness.
+- Preserve published history unless explicit historical adjusted-close reprocessing occurs.
+- Prevent publication of incorrect current-day opening prices through stronger loading, validation, and quality checks; bad opening-price publication is treated as a production quality failure rather than a normal reprocessing path.
 
 What it should not do:
 
@@ -639,7 +654,9 @@ Core job types:
 - Delisting suspicion: after two consecutive expected trading days without a price, excluding weekends and exchange holidays, mark the instrument as suspected and allow denominator exclusion when appropriate.
 - Low coverage: mark exchange/day partial/problematic or failed rather than ready.
 - Market closed: mark exchange/day market closed and skip price computation.
-- Reprocessing: create an explicit reprocessing job, recompute affected records, rebuild read models, and retain audit evidence.
+- Historical adjusted-close reprocessing: create an explicit reprocessing job, recompute affected historical records and dependent backend statistics, rebuild affected historical read models, and retain audit evidence.
+- Signal algorithm changes: validate historically before rollout, then apply prospectively after app launch. Retrospective signal recomputation is limited to development and pre-launch validation.
+- Bad current-day opening-price publication: treat as a prevention failure that should harden loading and validation, not as a normal reprocessing path.
 
 ## 8. Technology Stack
 
@@ -738,9 +755,11 @@ Why it fits:
 - Adapters isolate provider quirks and allow replacement.
 - Source-prioritization stays centralized.
 - Providers should be selected for reusable coverage across current and future exchanges, not as one-off integrations for NYSE, Nasdaq, or Prague Stock Exchange.
+- The design phase should build a broad free-source candidate pool; final production source selection belongs to implementation validation.
+- Individual sources are expected to be limited. A source can be useful even if it only covers a subset of instruments, exchanges, or load phases, as long as it improves the aggregate loading algorithm.
 - `yfinance` must be included in the candidate source pool.
 - FinceptTerminal should be used as inspiration for candidate connector discovery, especially its stated use of broad data connectors such as Yahoo Finance, Polygon, FRED, IMF, World Bank, DBnomics, AkShare, government APIs, and related market-data/broker integrations.
-- All candidate providers listed below must be tested during implementation validation because many are expected to fail completeness, speed, cost, terms, rate-limit, or exchange-coverage requirements.
+- All candidate providers listed below must be tested during implementation validation because many are expected to fail individual completeness, speed, cost, rate-limit, or exchange-coverage requirements.
 
 #### Provider Validation Candidate Pool
 
@@ -771,7 +790,7 @@ Validation/reference sources:
 
 - Official exchange downloads and official exchange websites as reference/validation sources rather than preferred primary adapters.
 
-Each candidate should be assessed for daily open/close prices, historical prices, volume/turnover, instrument discovery, identifiers, exchange-calendar support, completeness, correctness, timeliness, speed, cost, terms, rate limits, exchange coverage, implementation effort, and operational reliability.
+Each candidate should be assessed for daily open/close prices, historical prices, volume/turnover, instrument discovery, identifiers, exchange-calendar support, completeness, correctness, timeliness, speed, cost, rate limits, exchange coverage, implementation effort, operational reliability, and whether it complements other sources in the combined loading algorithm.
 
 Alternatives considered:
 
@@ -781,7 +800,8 @@ Alternatives considered:
 Tradeoffs accepted:
 
 - Free sources can be unstable, so the system must invest in quality checks and provider observability.
-- Candidate providers remain untrusted until tested against completeness, correctness, timeliness, cost, terms, and rate-limit constraints.
+- Candidate providers remain untrusted until tested against completeness, correctness, timeliness, cost, rate-limit constraints, and usefulness inside a combined multi-source loading strategy.
+- The publication bar applies to the aggregate algorithm, not to each individual free source.
 - Official exchange websites/downloads may be used as validation/reference sources, but the preferred backend loading model is reusable exchange-agnostic adapters.
 
 ### Exchange Calendars
@@ -792,7 +812,7 @@ Recommendation: use an exchange-agnostic calendar validation flow. For every exc
 
 Recommendation:
 
-- Mobile API: app-level access controls using API keys or signed client credentials initially, plus rate limiting.
+- Mobile API: app-level access controls using API keys or signed client credentials initially, plus rate limiting. Treat these credentials as app identification and throttling controls, not permanent secrets.
 - Operator/admin: private login with strong password, optional two-factor authentication, and access through private network path or SSH tunnel.
 
 Why it fits:
@@ -809,6 +829,7 @@ Alternatives considered:
 Tradeoffs accepted:
 
 - If future app features require user-specific backend state, the auth model must expand.
+- Mobile credentials can leak, so the API must support overlapping key/token rotation, revocation of abused credentials, and rate limiting by IP, device/app identifier, app version, or similar available request attributes.
 
 ### Observability
 
@@ -937,7 +958,7 @@ Responsibilities:
 
 - Configure supported exchanges and instrument types.
 - Trigger validation for candidate exchanges.
-- Trigger explicit reprocessing.
+- Trigger explicit historical adjusted-close reprocessing.
 - Trigger retention cutoff.
 
 ### Internal Boundaries
@@ -952,12 +973,13 @@ Conceptual entities:
 - `InstrumentType`: stock, ETF, ETN, crypto.
 - `Instrument`: canonical supported instrument identity.
 - `Listing`: exchange/venue-specific representation of an instrument or asset.
+- `IdentifierRecord`: provider or reference identifiers stored when available to preserve continuity across symbol or name changes.
 - `SupportedUniverseState`: current support state for a chosen listing.
 - `UniverseChangeRecord`: audit record for additions, removals, exclusions, degradations, and restorations.
 - `Provider`: external data source.
 - `ProviderAttempt`: provider call/result metadata.
-- `PriceRecord`: daily price datum, including historical close and current-day open type.
-- `LoadJob`: background job definition and state.
+- `PriceRecord`: daily price datum, including price type, value, currency, exchange-local trading date, and provider/observation timestamp where available. Historical close records use adjusted close prices. Current-day open records use official exchange-local unadjusted open prices.
+- `LoadJob`: background job definition and state. Allowed states are `queued`, `running`, `retry_wait`, `succeeded`, `failed`, `cancelled`, and `stale_abandoned`; `succeeded`, `failed`, and `cancelled` are terminal for publication logic.
 - `InstrumentLoadOutcome`: per-instrument terminal outcome for an exchange/day/load type.
 - `ExchangeDayLoad`: aggregate load/publication state for an exchange/day/load type.
 - `SignalStatistic`: persisted supporting statistics for the algorithm.
@@ -974,6 +996,8 @@ Key relationships:
 - Exchanges have a derived activity-priority rank based on trailing 60 trading-day average total traded value across supported/candidate listings, normalized to USD/EUR-equivalent for cross-market comparison. This rank is used as the final tie-breaker for multi-listed instruments, is recomputed during exchange validation and periodically, initially monthly, and automatically incorporates newly added exchanges.
 - Each exchange has a fixed benchmark sample for correctness checks, selected from the top 20 most active supported instruments by trailing 60 trading-day traded value. Candidate lists refresh during exchange validation and monthly review, but the active benchmark set remains stable unless a benchmark becomes invalid or delisted. Benchmark instruments are manually protected from automatic exclusion unless explicitly removed.
 - A supported listing has many price records.
+- Symbol, name, and identifier changes are tracked through universe-change history.
+- Adjusted close is used for historical continuity; suspected split or corporate-action anomalies are operator-review items at launch, not automatically resolved through a full corporate-action engine.
 - Price records feed signal statistics and signal events.
 - Exchange-day publication covers eligible supported listings for that exchange/day.
 - Universe-change records reference instruments, listings, exchanges, and old/new support states.
@@ -985,7 +1009,9 @@ Important constraints:
 - One final supported listing per multi-listed company under the global policy.
 - One chosen venue per supported crypto asset under `CRY`.
 - Unique price record per instrument/day/price type after source prioritization.
-- Historical records remain stable unless updated through explicit reprocessing.
+- Every persisted price record stores its currency; currency conversion is not implied by price storage.
+- Historical adjusted-close records remain stable unless updated through explicit reprocessing.
+- Post-launch signal records are not rewritten retrospectively because of signal-algorithm changes.
 - Retention applies consistently across prices, signals, and supporting statistics.
 
 ## 11. Failure Handling
@@ -1024,6 +1050,9 @@ Important constraints:
 - Make jobs idempotent by exchange/day/instrument/load type.
 - Use locks to prevent duplicate active jobs for the same unit of work.
 - Retry transient failures with bounded attempts.
+- Enforce provider/request timeouts so jobs do not block indefinitely.
+- Use worker heartbeat or lock expiry to identify crashed `running` jobs and move them to `stale_abandoned` or back to `queued` according to recovery rules.
+- Allow operator-visible manual actions to retry, cancel, or mark failed, with a required reason.
 - Surface failed jobs in operator views.
 
 ### Database / Cache Issues
@@ -1044,6 +1073,7 @@ Important constraints:
 - Publish exchanges independently.
 - Do not block NYSE because PSE failed, or vice versa.
 - Keep degraded exchange state internal unless it affects app refresh readiness.
+- For repeated timeliness misses, keep app behavior as ready/not-ready and do not serve lower-trust current-day data.
 - Use operator dashboard to show exchange/day-specific failures and exceptions.
 
 ## 12. Performance Strategy
@@ -1062,7 +1092,7 @@ Add Redis only when measured read traffic or latency requires it.
 
 ### Precomputation
 
-Precompute after publication and reprocessing:
+Precompute after publication and historical adjusted-close reprocessing:
 
 - current-day app payloads per exchange
 - latest readiness summaries
@@ -1077,7 +1107,9 @@ This fits the daily publication model and avoids expensive repeated joins during
 - Public mobile current-day data should come only from ready publication records.
 - Historical records are stable by default.
 - Operator data can show in-progress states directly.
-- If correctness benchmark data is delayed, publication may proceed when allowed by product rules, and correctness validation can complete afterward.
+- Current-day opening-price publication must wait for successful correctness validation. If benchmark/reference data is delayed, the affected exchange/day remains unpublished until validation succeeds.
+- Correctness-validation delays or failures that block publication must be treated as serious load-quality failures and shown prominently in operator dashboards and logs.
+- The system should be engineered so blocked publication is truly exceptional; routine blocking across most exchanges means the loading, validation, or source strategy is not acceptable.
 
 ### Bottlenecks
 
@@ -1112,12 +1144,13 @@ Track:
 - signal computation duration
 - API response latency for readiness, current prices, history, and signals
 - read-model rebuild duration
+- KPI exception volume, recurrence, and unresolved incident counts as the proxy for operational burden. Do not require manual operator time logging.
 
 ## 13. Security and Access Control
 
 ### Authentication
 
-- Mobile API should use app-level credentials or signed request tokens initially.
+- Mobile API should use app-level credentials or signed request tokens initially. These credentials are assumed extractable and are used for app identification, throttling, rotation, and revocation rather than strong user authentication.
 - Operator/admin access should require authenticated sessions.
 - Admin access should be private by network path where practical, such as SSH tunnel, VPN, or restricted IP allowlist.
 
@@ -1125,7 +1158,7 @@ Track:
 
 - Public mobile clients can read only supported, app-visible, published data.
 - Operator users can read operational dashboards.
-- Admin users can change exchange/instrument-type configuration, trigger validation, trigger reprocessing, and apply retention cutoff.
+- Admin users can change exchange/instrument-type configuration, trigger validation, trigger historical adjusted-close reprocessing, and apply retention cutoff.
 - Administrative actions should be audited.
 
 ### Sensitive Data Handling
@@ -1137,11 +1170,14 @@ Track:
 
 ### Backups
 
-Recommendation: keep backups frugal at launch. Create automated daily PostgreSQL dumps plus file/config backups on the VPS, overwriting the previous local backup so only one backup copy is stored on VPS disk. Off-machine backups are manual, ad hoc, and unencrypted. Because off-machine backups are not automated, the operator dashboard should expose the latest successful local backup timestamp and the latest recorded off-machine copy timestamp.
+Recommendation: keep backups frugal at launch. Target an RPO of up to 24 hours for historical and backoffice data after severe infrastructure failure, and an RTO of 24 hours after VPS loss. Create automated daily PostgreSQL dumps plus file/config backups on the VPS, overwriting the previous local backup so only one backup copy is stored on VPS disk. Off-machine backups are manual and should be copied at least weekly. Restore should be tested before launch and after meaningful schema changes. For database corruption, restore from the latest valid backup rather than attempting risky manual repair. Because off-machine backups are not automated, the operator dashboard should expose the latest successful local backup timestamp and the latest recorded off-machine copy timestamp.
 
 ### Abuse Prevention
 
 - Rate-limit public API endpoints.
+- Support mobile credential rotation with overlapping old/new credentials.
+- Revoke abused mobile credentials when necessary.
+- Rate-limit by IP, device/app identifier, app version, or similar available request attributes where practical.
 - Bound history request sizes.
 - Validate exchange, date, and instrument inputs.
 - Reject broad unsupported-universe enumeration.
@@ -1156,7 +1192,9 @@ Use structured logs for:
 - job start/finish/failure
 - provider attempts and failures
 - source-prioritization conflicts
+- provider/exchange reliability score changes
 - publication decisions
+- correctness-validation publication blocks
 - quality check results
 - signal generation failures
 - admin commands
@@ -1191,6 +1229,7 @@ Initial alerts should be simple and owner-focused:
 - worker not running
 - backup failure
 - database disk usage threshold
+- recurring KPI misses or unresolved degraded states
 
 ### Health Checks
 
@@ -1267,7 +1306,8 @@ Revisit the architecture if:
 - The mobile app primarily needs current readiness, current-day prices/signals, yesterday's record, and a 30-day bootstrap.
 - App-facing user-specific alert state remains outside backend scope.
 - The operator is comfortable maintaining a VPS.
-- Free data sources can provide sufficient launch quality when combined and validated.
+- Free data sources can provide sufficient launch quality when combined and validated, even when individual sources are incomplete or speed-limited.
+- Prague Stock Exchange must meet the same launch trust bar as NYSE and Nasdaq. If PSE validation fails, launch remains blocked while source discovery, provider combination, adapter behavior, or validation strategy is improved.
 - Initial app traffic is moderate enough for PostgreSQL-backed read models.
 - Operator dashboards are private/internal and can be pragmatic rather than consumer-polished.
 
@@ -1278,9 +1318,10 @@ No currently unresolved architecture questions remain blocking implementation pl
 ## 18. Risks
 
 - Free data sources may be too incomplete, delayed, or inconsistent for the required trust bar.
-- Prague Stock Exchange data may be harder to source reliably than NYSE/Nasdaq data.
-- Provider terms, rate limits, or formats may change and break ingestion.
+- Prague Stock Exchange data may be harder to source reliably than NYSE/Nasdaq data, but PSE remains mandatory for launch and cannot be admitted under a lower trust bar.
+- Provider access behavior, rate limits, or formats may change and break ingestion.
 - Multi-listed company resolution may be ambiguous without strong identifiers and turnover data.
+- Corporate-action, split, symbol-change, and identifier-change handling is intentionally modest at launch and may need deeper support as coverage expands.
 - Incorrect exchange-calendar handling can cause false failures or missed publications.
 - Database-backed jobs can fail subtly if idempotency, locking, and terminal states are not well designed.
 - Signal recomputation can become expensive during initial fill or exceptional reprocessing.

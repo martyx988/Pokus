@@ -206,7 +206,7 @@ For each:
 
 ## Open Questions
 
-List questions that must be resolved before implementation.
+List questions that must be resolved before implementation and decisions that need to be made in reaction to the review.
 
 ---
 

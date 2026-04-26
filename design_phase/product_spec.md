@@ -45,6 +45,8 @@ The initial production exchange set is:
 - Nasdaq
 - Prague Stock Exchange
 
+All three launch exchanges are mandatory for launch. Prague Stock Exchange must meet the same trust bar as NYSE and Nasdaq; if validation fails, launch remains blocked until the source discovery, loading, or validation strategy is improved enough for PSE to pass.
+
 Initial launch priority is:
 
 - Stocks
@@ -124,10 +126,16 @@ Primary flow:
 
 Primary flow:
 
-1. A bad historical or daily publication is identified.
-2. The system performs explicit backend recomputation or reprocessing.
-3. Stored prices, supporting statistics, and signal events are corrected in backend records.
-4. The app is not specially notified; future reads reflect the corrected backend state.
+1. A historical adjusted-close data issue is identified.
+2. The system performs explicit backend recomputation or reprocessing for affected historical records.
+3. Stored historical prices and dependent backend statistics may be corrected in backend records.
+4. The mobile app can pick up corrected historical records through a routine once-daily correction sync.
+
+Production boundaries:
+
+- After app launch, signal algorithm changes must apply prospectively only; previously delivered app alerts must not be retrospectively rewritten.
+- Retrospective signal recomputation is allowed during development and pre-launch validation only.
+- A bad published current-day opening price is not treated as a normal reprocessing case. Because opening prices drive alert triggers, the loading and validation process must be strengthened to prevent incorrect opening-price publication.
 
 ## 3. Functional Requirements
 
@@ -151,6 +159,9 @@ Primary flow:
   - Manually protected benchmark instruments may be exempted from automatic exclusion when needed for correctness checks.
 - FR-8: The system must expose only the supported universe to the app.
 - FR-9: The system must record instrument additions, removals, exclusions, and degradations with explicit reasons in a lightweight historical record.
+- FR-9a: The system must record symbol, name, and identifier changes as lightweight universe-change events when detected.
+- FR-9b: The system must store stable provider or reference identifiers when available, but launch scope does not require a full corporate-action engine.
+- FR-9c: Suspected split or corporate-action anomalies must be flagged for operator review rather than automatically rewriting current-day opening prices or signal history.
 - FR-10: When an instrument leaves the supported universe, the system must stop updating it but retain its stored history subject to overall retention rules.
 - FR-11: The system must allow newly admitted instruments to be exposed for price data immediately, even before signal eligibility is reached.
 - FR-11a: The system must group supported cryptocurrencies under a synthetic `CRY` exchange rather than treating their native venues as separate supported exchanges.
@@ -163,18 +174,25 @@ Primary flow:
 
 ### 3.2 Market Data Ingestion and Storage
 
-- FR-12: The system must ingest and store daily closing prices as historical records.
-- FR-13: The system must ingest and store the current day's opening price for current-day evaluation.
+- FR-12: The system must ingest and store adjusted daily closing prices as historical records.
+- FR-13: The system must ingest and store the official exchange-local unadjusted current-day opening price for current-day evaluation.
+- FR-13a: Each stored price record must include the price currency, because currencies vary by exchange and listing.
+- FR-13b: Halted, suspended, or late-open instruments must be marked pending or failed according to load rules rather than assigned an invented fallback price.
 - FR-14: The system must support an initial historical fill for supported instruments.
 - FR-15: The initial historical fill must generate historical prices, supporting statistics, and historical `Dip`/`Skyrocket` events.
 - FR-16: The system must support ongoing daily refresh of market data for supported exchanges.
 - FR-17: The system must use multiple external data sources to maximize data availability.
+- FR-17a: Individual free or free-tier sources are not expected to satisfy completeness, speed, or robustness requirements by themselves; the combined loading algorithm across multiple complementary sources must satisfy the publication criteria.
+- FR-17b: Provider admission into the production loading algorithm must be based on implementation validation results, not selected during design.
 - FR-18: When multiple candidate values exist for the same business datum, the system must choose the published value using one global source-prioritization policy.
 - FR-19: The global source-prioritization policy must rank candidate values in this order:
-  - historical reliability
+  - provider/exchange reliability score
   - ratio of historical prices available for the instrument from that source
   - exchange coverage quality
   - fixed source order
+- FR-19a: Provider reliability scores must be maintained per provider and exchange, because the system is price-focused and does not need separate reliability dimensions per price data type at launch.
+- FR-19b: Provider/exchange reliability scores must be updated from validation and production outcomes, including benchmark matches, missing-rate, timeliness, stale data, provider errors, and disagreement frequency.
+- FR-19c: The system must retain audit evidence for candidate price values, the selected source, and the reason the selected source won.
 
 ### 3.3 Signal Generation
 
@@ -193,6 +211,8 @@ Primary flow:
 - FR-29: Terminal load outcomes must include successful load and failed load.
 - FR-30: The system must compute exchange/day coverage for publication decisions.
 - FR-31: The system must mark an exchange/day as `ready` only when coverage exceeds 99%.
+- FR-31a: Current-day opening-price publication must not be marked `ready` until correctness validation has completed successfully.
+- FR-31b: If correctness validation is delayed or fails and blocks current-day opening-price publication, the exchange/day must remain unpublished and the condition must be immediately visible in operator dashboards and logs.
 - FR-32: The coverage denominator must be based on eligible instruments for that exchange/day.
 - FR-33: Instruments under temporary suspicion of delisting may be excluded from the coverage denominator if they meet the system's delisting-suspicion rule.
 - FR-34: The system must mark an instrument as delisting-suspected after 2 consecutive expected trading days without a price, excluding weekends and exchange holidays from that count.
@@ -261,10 +281,18 @@ Primary flow:
 - FR-54: The operator view must support visibility into exclusions and supported-universe changes.
 - FR-55: If a production exchange repeatedly misses the quality bar, the system must keep it supported but represent it internally as degraded while investigation is ongoing.
 - FR-55a: A degraded production exchange becomes eligible for normal status after 3 consecutive expected trading days meeting all SLA baselines: greater than 99% coverage, benchmark mismatch rate at or below 5%, publication within the 30-minute target, and no unresolved provider/calendar incident affecting that exchange. Operator override is allowed for exceptional cases.
+- FR-55f: If an exchange misses the 30-minute publication target on 3 of the last 5 expected trading days but eventually meets coverage and correctness, it must be marked internally degraded, shown prominently in dashboards/logs, and investigated for source-strategy or loading improvements.
+- FR-55g: Repeated timeliness degradation must not lower app-facing trust. The app should see the exchange as not ready until it is ready, not receive lower-trust current-day data.
+- FR-55b: Background load and processing jobs must use explicit states: `queued`, `running`, `retry_wait`, `succeeded`, `failed`, `cancelled`, and `stale_abandoned`.
+- FR-55c: Only `succeeded`, `failed`, and `cancelled` job outcomes count as terminal for publication-readiness logic.
+- FR-55d: Jobs must have bounded retry attempts, provider/request timeouts, idempotency keys, and worker heartbeat or lock expiry so crashed workers can be recovered.
+- FR-55e: Operator manual actions may retry, cancel, or mark a job failed, but must require a recorded reason.
 
 ### 3.7 Validation and Change Governance
 
 - FR-56: The system must support a short pre-production validation path for new exchanges.
+- FR-56a: NYSE, Nasdaq, and Prague Stock Exchange are mandatory launch exchanges and must all pass the same validation and publication trust bar before launch.
+- FR-56b: If Prague Stock Exchange fails validation, the system must not lower the trust bar or remove PSE from launch scope; the team must iterate on source discovery, provider combination, adapter behavior, or validation strategy until PSE can be supported successfully.
 - FR-57: A new exchange must not enter production support until validation shows acceptable:
   - instrument discovery quality
   - primary-listing selection behavior
@@ -274,7 +302,11 @@ Primary flow:
   - historical load timeliness
 - FR-58: Historical published results must remain stable by default.
 - FR-59: Historical recomputation must occur only through explicit action.
-- FR-60: Changes to the signal algorithm must be validated against historical data before production rollout.
+- FR-59a: Historical adjusted-close corrections may be propagated to the mobile app through a routine once-daily correction sync.
+- FR-59b: After app launch, reprocessing must not retrospectively rewrite previously delivered app alerts or signal events due to signal-algorithm changes.
+- FR-59c: Retrospective signal recomputation is allowed in development and pre-launch validation environments.
+- FR-59d: Incorrect current-day opening-price publication must be treated as a prevention and quality-hardening failure, not a normal reprocessing workflow.
+- FR-60: Changes to the signal algorithm must be validated against historical data before production rollout, then applied prospectively after rollout.
 
 ## 4. Non-Functional Requirements
 
@@ -282,6 +314,7 @@ Primary flow:
 
 - NFR-1: The system is a daily-granularity system and does not provide intraday freshness.
 - NFR-2: Exchange/day publication should occur within 30 minutes of the relevant daily market event window used by the product.
+- NFR-2a: Repeated 30-minute target misses are internal degradation events, not app-visible partial-quality states.
 
 ### 4.2 Quality
 
@@ -294,18 +327,25 @@ Primary flow:
 - NFR-5: Instrument-level gaps must influence exchange/day quality assessment even though publication is exchange-scoped.
 - NFR-6: Correctness must be evaluated at the exchange level using a small fixed benchmark sample per exchange, selected from the top 20 most active supported instruments by trailing 60 trading-day traded value. Candidate lists refresh during exchange validation and monthly review, but the active benchmark set remains stable unless a benchmark becomes invalid or delisted.
 - NFR-7: An exchange/day correctness issue exists when benchmark mismatches exceed 5%.
-- NFR-8: If trusted reference data is delayed, exchange/day publication may proceed and correctness validation may be completed afterward.
+- NFR-8: Current-day opening-price publication must wait for successful correctness validation; delayed or failed correctness validation must block publication for the affected exchange/day.
+- NFR-8a: Blocked current-day publication due to correctness validation delay or failure is a serious load-quality failure and should be rare in normal operation. If most exchanges are blocked routinely, the loading, validation, or source strategy has failed the product requirement.
 
 ### 4.3 Reliability
 
 - NFR-9: Missing prices caused by backend loading problems must be treated as backend failures.
 - NFR-10: The system should require operator intervention only for exceptional failures, not normal daily operation.
+- NFR-10a: The system must not require manual operator time tracking. Operational burden should be inferred from KPI exception volume, recurrence, and unresolved incident counts.
+- NFR-10b: Routine operations are considered acceptable when backend KPIs are consistently met; repeated KPI misses, unresolved degraded exchanges, recurring validation blocks, backup failures, worker failures, or repeated publication delays indicate operational burden that requires automation, source-strategy improvement, dashboard improvement, or scope discipline for future expansion.
 - NFR-11: The system must remain trustworthy under constrained free-source usage by using source diversity rather than assuming one source is always available.
+- NFR-11a: Source diversity may include splitting the supported universe across complementary free sources when rate limits, speed limits, or coverage gaps prevent any one source from meeting the target alone.
 
 ### 4.4 Availability and Continuity
 
 - NFR-12: The mobile app must be able to determine whether an exchange's current-day dataset is ready before attempting a full exchange refresh.
 - NFR-13: The system must support partial market availability across exchanges because exchanges publish independently.
+- NFR-13a: Launch recovery targets are frugal: tolerate up to 24 hours of data loss for historical and backoffice data after a severe infrastructure failure, and target restoration within 24 hours after VPS loss.
+- NFR-13b: The system must support automated daily local PostgreSQL and configuration/file backups, plus at least weekly manual off-machine backup copies.
+- NFR-13c: Restore must be tested before launch and after meaningful schema changes.
 
 ### 4.5 Cost Sensitivity
 
@@ -325,6 +365,9 @@ Primary flow:
 
 - NFR-19: The system must expose only supported instruments and supported data views to the app.
 - NFR-20: Administrative capabilities such as exchange scope changes, reprocessing, and validation should be restricted to authorized operator use.
+- NFR-21: Mobile app credentials must be treated as app identification and throttling controls, not permanent secrets, because embedded mobile credentials can be extracted.
+- NFR-22: The system must support mobile API key or signed-token rotation with overlapping old/new credentials, revocation of abused credentials, and rate limiting by IP, device/app identifier, app version, or similar available request attributes.
+- NFR-23: Full backend end-user accounts are out of scope unless future app features require user-specific backend state.
 
 ## 5. Data & Domain Behavior
 
@@ -334,11 +377,12 @@ Primary flow:
 - Instrument: A supported security or asset selected within an exchange and instrument-type scope.
 - Instrument Type: Category such as stock, ETF, ETN, or crypto.
 - `CRY` Exchange: A synthetic exchange grouping used to represent supported cryptocurrencies under one exchange-level publication model.
-- Daily Price Record: Historical close or current-day open used by the system's daily model.
+- Daily Price Record: Adjusted historical close or official exchange-local unadjusted current-day open used by the system's daily model, including the price currency.
 - Signal Event: A `Dip` or `Skyrocket` event generated by the backend.
 - Signal Statistics: Historical or current supporting values used by the alert algorithm.
 - Exchange-Day Load: The operational record for a given exchange on a given day.
 - Universe Change Record: A lightweight history record explaining additions, removals, exclusions, degradations, and related reasons.
+- Identifier Record: Provider or reference identifiers stored when available to help preserve instrument continuity across symbol or name changes.
 
 ### 5.2 Instrument Lifecycle
 
@@ -365,8 +409,10 @@ An exchange/day may progress through these conceptual statuses:
 
 ### 5.4 Data Behavior Over Time
 
-- Historical closing prices accumulate over time.
-- Current-day opening prices represent the live daily evaluation anchor.
+- Adjusted historical closing prices accumulate over time.
+- Official exchange-local unadjusted current-day opening prices represent the live daily evaluation anchor.
+- Price records preserve the currency of the listing or exchange-specific price.
+- Halted, suspended, or late-open instruments remain pending or fail according to load rules rather than receiving invented prices.
 - Supporting statistics evolve as new daily data is added.
 - Signal events are generated when the algorithm identifies significant movement.
 - Published historical records remain stable unless explicitly reprocessed.
@@ -514,12 +560,17 @@ Error scenarios:
 - A newly admitted instrument has insufficient history. The app may receive price data but no signal readiness.
 - An exchange is closed for the day. No computation should happen for that exchange/day.
 - An exchange/day has failed instrument loads. The system may publish only if all eligible instruments reached terminal outcomes and exchange/day coverage exceeds 99%.
+- An exchange/day current-day opening-price load has not passed correctness validation. The system must not publish that exchange/day as ready; the failure must be highly visible in dashboards and logs.
 - A subset of instruments appears missing because they are suspected delistings. Those may be excluded from the completeness denominator after 2 consecutive expected trading days without a price, excluding weekends and exchange holidays.
 - A free source rate limit is reached. The system should continue through alternate sources where possible.
+- Multiple free sources may each be incomplete or speed-limited, but the aggregate loading algorithm may still pass if sources complement each other across instruments, exchanges, or load phases.
 - Different sources provide different values. The system must resolve using the global prioritization policy.
+- Provider reliability differs by exchange. The system should score source reliability per provider and exchange, learn from validation and production outcomes, and retain candidate-value audit evidence.
+- A provider reports a symbol, name, identifier, split, or corporate-action-like change. The system should rely on adjusted close for historical continuity, store stable identifiers where available, record symbol/name/identifier changes as universe-change events, and flag suspected split or corporate-action anomalies for operator review.
 - A cryptocurrency is available from multiple venues. The system must expose only one chosen listing for that asset under the synthetic `CRY` exchange using the crypto venue-selection rule.
-- A historical day was published incorrectly. The system may support explicit reprocessing.
-- An algorithm change is proposed. It must be historically validated before production use.
+- A historical adjusted-close record was published incorrectly. The system may support explicit reprocessing, and the app can pick up corrected historical records during its routine once-daily correction sync.
+- An algorithm change is proposed. It must be historically validated before production use. After app launch, the changed algorithm applies only to new signal computation going forward.
+- A current-day opening price would be published incorrectly. The system must prevent publication through stronger validation and loading safeguards rather than relying on normal reprocessing.
 
 ## 9. Constraints
 
@@ -530,7 +581,7 @@ Error scenarios:
 - The system must be operable by a single owner.
 - The system must rely on free sources or free-tier access for data loading.
 - The system should favor completeness over correctness, correctness over timeliness, and timeliness over consistency when tradeoffs must be surfaced.
-- The system should start with NYSE, Nasdaq, and PSE and expand only when new exchanges pass validation.
+- The system must launch with NYSE, Nasdaq, and PSE all passing the same trust bar, and expand only when new exchanges pass validation.
 - The system must preserve low routine operator burden.
 
 ## 10. Assumptions
@@ -551,35 +602,38 @@ No currently unresolved questions are considered blocking for system specificati
 ## 12. Acceptance Criteria
 
 - AC-1: The system supports NYSE, Nasdaq, and Prague Stock Exchange as initial production exchanges.
+- AC-1a: Launch is blocked until NYSE, Nasdaq, and Prague Stock Exchange all meet the same validation and publication trust bar.
 - AC-2: The system exposes only supported instruments to the app.
 - AC-3: The system automatically discovers and maintains instruments within admin-selected exchanges and instrument types.
 - AC-4: The system applies the primary/best-listing selection rule in this order: home exchange, highest turnover, automatically derived exchange activity priority.
 - AC-5: The system excludes low-turnover instruments after a 60 trading-day review window when median daily traded value is below the launch threshold, and excludes stale/missing-data instruments after missing or invalid prices on 3 of the last 10 expected trading days, with protected benchmark exceptions allowed.
-- AC-6: The system stores historical closing prices and current-day opening prices.
+- AC-6: The system stores adjusted historical closing prices, official exchange-local unadjusted current-day opening prices, and the currency for each stored price record.
 - AC-7: The system performs initial historical fill and generates historical prices, signal events, and supporting statistics.
 - AC-8: The system computes only `Dip` and `Skyrocket` backend signals.
 - AC-9: The system does not own or evaluate `Custom` alert rules.
 - AC-10: A newly admitted instrument can appear in app price data before it is signal-eligible.
-- AC-11: An exchange/day is not marked ready until all eligible instruments have terminal outcomes and coverage exceeds 99%.
+- AC-11: An exchange/day current-day opening-price publication is not marked ready until all eligible instruments have terminal outcomes, coverage exceeds 99%, and correctness validation has completed successfully.
 - AC-12: Instruments under accepted delisting suspicion can be excluded from the publication denominator after 2 consecutive expected trading days without a price, excluding weekends and exchange holidays.
 - AC-13: Each exchange publishes independently.
 - AC-14: The app can determine whether an exchange is ready before requesting full current-day exchange data.
-- AC-15: Published exchange/day data is typically available within 30 minutes.
+- AC-15: Published exchange/day data is typically available within 30 minutes; an exchange missing that target on 3 of the last 5 expected trading days is internally degraded and requires investigation while the app continues to see only ready/not-ready behavior.
 - AC-16: Historical retention can be reduced through an ad hoc cutoff, with a maximum supported retained window of 3 years.
 - AC-17: Delisted instruments leave active support after 5 days but retain historical records.
 - AC-18: The system retains prices, signal events, and supporting statistics consistently under the same retention policy.
 - AC-19: The operator view can show separate today-opening and yesterday-historical load tables with status, timing, and quality.
 - AC-20: The operator view distinguishes at least `not started`, `in progress`, `ready`, `partial/problematic`, `failed`, and `market closed`.
+- AC-20a: The operator view surfaces KPI exceptions and recurring failures clearly enough that operational burden can be judged from backend health signals rather than manual time logging.
 - AC-21: The system provides a separate universe-change and exclusion dashboard filterable by event type and optionally by exchange and instrument.
 - AC-22: The universe-change and exclusion dashboard supports at least these event types: `added`, `removed`, `excluded`, `delisting_suspected`, `delisted_removed`, `restored`, `degraded`, and `degradation_cleared`.
 - AC-23: Each universe-change and exclusion row shows at minimum effective day, event type, instrument, exchange, instrument type, reason, details, old state, and new state.
-- AC-24: The system uses the agreed global source-prioritization order when candidate values conflict.
-- AC-25: Exchange-level correctness can be evaluated using a small fixed benchmark sample selected from the top 20 most active supported instruments by trailing 60 trading-day traded value, with manual protection from automatic exclusion and a 5% mismatch threshold.
+- AC-24: The system uses the agreed global source-prioritization order when candidate values conflict, backed by provider/exchange reliability scores and candidate-value audit evidence.
+- AC-24a: The system tracks symbol, name, and identifier changes as universe-change events, stores stable provider/reference identifiers when available, and flags suspected split or corporate-action anomalies for operator review without requiring a full corporate-action engine at launch.
+- AC-25: Exchange-level correctness is evaluated using a small fixed benchmark sample selected from the top 20 most active supported instruments by trailing 60 trading-day traded value, with manual protection from automatic exclusion and a 5% mismatch threshold; current-day opening-price publication is blocked until this validation succeeds.
 - AC-26: The system supports short-window validation for onboarding a new exchange.
 - AC-27: A new exchange cannot be promoted to production until discovery quality, primary-listing selection behavior, and daily/historical load completeness and timeliness are validated.
-- AC-28: The system supports explicit exceptional reprocessing of published data.
-- AC-29: Historical published results remain stable unless explicitly reprocessed.
-- AC-30: Algorithm changes require historical validation before production rollout.
+- AC-28: The system supports explicit exceptional reprocessing of historical adjusted-close records and dependent backend statistics.
+- AC-29: Historical published results remain stable unless explicitly reprocessed, and the app can pick up corrected historical records through a routine once-daily correction sync.
+- AC-30: Algorithm changes require historical validation before production rollout and apply prospectively after launch rather than rewriting previously delivered app alerts.
 - AC-31: The system treats `crypto` as cryptocurrencies themselves, not crypto ETFs.
 - AC-32: The system groups supported cryptocurrencies under a synthetic `CRY` exchange.
 - AC-33: The system represents each supported cryptocurrency with exactly one chosen listing using this rule: highest sustained turnover, then best historical data completeness, then fixed venue priority.
