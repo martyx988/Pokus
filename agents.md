@@ -34,4 +34,3 @@ Use their `SKILL.md` files as the source of truth.
 - always commit and merge to Github remote main after you finish
 
 ---
-
