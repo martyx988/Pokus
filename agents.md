@@ -12,11 +12,12 @@ The workflow is powered by local skills defined in agents/skills/
 
 ---
 
+## Intended File Structure
 
+- `agents/`: Local skills, agent definitions, and hooks.
+- `design_phase/`: Spec-driven design inputs and outputs.
+- `task_phase/`: Roadmap, milestone checklist, and decomposed tasks.
+- `project/`: Project source code and its internal folder structure.
 
+---
 
-end-to-end agent for project implementation
-starts by spec driven automated design with frequent user input which produces clear roadmap and task decomposition
-then moves to iterative development of these tasks
-
-our workflow is driven by local skills defined in agents/skills
