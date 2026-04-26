@@ -77,7 +77,43 @@ Each task must:
 
 ---
 
-### Context Extraction Rule
+## Granularity Rules
+
+A task is too large if it includes more than one domain entity, one service, one API surface, or one workflow boundary.
+
+When a milestone includes schema/model work, split tasks by entity or tightly-coupled entity group. Do not group reference data, canonical identity, operational state, audit history, and read models into one task.
+
+For service logic, split tasks by behavior:
+- state transition logic
+- idempotency logic
+- scheduling/heartbeat logic
+- health calculation logic
+- logging/metrics helpers
+
+For API work, split tasks by endpoint group and access boundary:
+- public mobile endpoints
+- private operator endpoints
+- admin command endpoints
+- shared serializers/permissions only when needed first
+
+For database/schema topics, default to one task per entity unless entities are purely dependent and meaningless alone.
+- Allowed tightly-coupled groups:
+  - simple lookup/reference tables together
+  - join table with the two entities it directly connects only if the parent entities already exist
+  - enum/constants with the model that owns them
+- Do not combine:
+  - canonical identity with audit history
+  - provider attempt records with trusted price records
+  - price storage with signal storage
+  - job records with admin commands
+  - exchange-day aggregate state with per-instrument outcomes unless one already exists
+
+
+Each task should usually modify one small implementation area only. As a rule of thumb, production-code changes should fit in 1-3 closely related files, with separate test files allowed.
+
+---
+
+## Context Extraction Rule
 
 Each task must include a "Relevant Context" section.
 
@@ -189,3 +225,18 @@ Tasks must follow specific folder/file structure:
 - Avoid ambiguity
 - Do not include implementation code
 - Make tasks directly usable by Codex
+
+---
+
+## Split Check
+
+Before writing task files, review each proposed task and split it further if it contains:
+- more than one independent model family
+- both schema and business logic
+- both backend behavior and API exposure
+- both public and private access surfaces
+- both production code and broad end-to-end validation
+- more than one high-risk invariant
+- acceptance criteria that test unrelated behaviors
+
+If splitting is possible without breaking dependency order, split.
