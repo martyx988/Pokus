@@ -77,6 +77,20 @@ Each task must:
 
 ---
 
+### Context Extraction Rule
+
+Each task must include a "Relevant Context" section.
+
+This section must:
+- summarize only the parts of architecture and spec needed for the task
+- be concise (no raw copying of large sections)
+- preserve intent and constraints
+
+Do not copy large passages verbatim.
+Do not omit critical context needed for correct implementation.
+
+---
+
 # Task Output Format
 
 For each task:
@@ -99,7 +113,7 @@ What must NOT be modified
 What existing components or data it depends on
 
 ### Relevant Context
-Summarized architecture intent and key constraints from spec regarding this task
+Summarized architecture intent and key constraints from spec
 
 ### Expected Output
 What must exist after completion
