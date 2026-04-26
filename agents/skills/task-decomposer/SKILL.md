@@ -47,6 +47,7 @@ You must:
 
 - Decompose ONLY the current milestone
 - Create small, independent, executable tasks
+- Build a complete implementation-unit inventory before writing task files
 - Define strict boundaries for each task
 - Ensure tasks are ordered correctly
 - Ensure each task is testable
@@ -79,7 +80,17 @@ Each task must:
 
 ## Granularity Rules
 
-A task is too large if it includes more than one domain entity, one service, one API surface, or one workflow boundary.
+A task is too large if it includes more than one domain entity, one service, one API surface, one workflow boundary, or one small behavior.
+
+Use a hard implementation budget. Split any task that is likely to require:
+- more than one small behavior or responsibility
+- more than one migration/model family
+- more than one API surface or access boundary
+- more than one workflow state change
+- more than about 60-90 minutes of focused implementation by a software-developer agent
+- broad coordination across unrelated modules
+
+Prefer narrowly useful tasks over bundled "foundation" tasks. If a task can be split while leaving both parts meaningful and ordered, split it.
 
 When a milestone includes schema/model work, split tasks by entity or tightly-coupled entity group. Do not group reference data, canonical identity, operational state, audit history, and read models into one task.
 
@@ -110,6 +121,79 @@ For database/schema topics, default to one task per entity unless entities are p
 
 
 Each task should usually modify one small implementation area only. As a rule of thumb, production-code changes should fit in 1-3 closely related files, with separate test files allowed.
+
+Tests are not count-limited. Add as many focused tests as needed, but tests must prove only this task's single purpose. Do not turn implementation tasks into broad milestone, workflow, or end-to-end validation tasks.
+
+---
+
+## Pre-Write Task Inventory
+
+Before writing any task files, create a private inventory of all implementation units implied by the current milestone.
+
+The inventory must list, where applicable:
+- models and migrations
+- constants/enums/reference data
+- services and business behaviors
+- workflow states or transitions
+- API endpoints, serializers, permissions, and access boundaries
+- management commands, scheduled jobs, worker entrypoints, or runtime commands
+- settings, deployment, and environment changes
+- logging, metrics, health, and observability helpers
+- test groups
+- documentation updates
+
+Then group inventory items into the smallest safe tasks. A group is allowed only when the items are tightly coupled and meaningless alone.
+
+Do not write the inventory to the final task files unless explicitly asked. Use it to prevent hidden bundles.
+
+---
+
+## Implementation Budget Rule
+
+Each task must include an "Implementation Budget" section.
+
+This section must state:
+- Production files: the expected maximum number and type of closely related production files
+- Behavior count: the exact behavior count, usually 1
+- Model/API/workflow count: the exact count relevant to the task
+- Test scope: the focused behavior, model, API surface, or integration boundary to test
+
+The implementation budget is a stop boundary for the software-developer agent. It must make clear when the task should stop instead of expanding into adjacent work.
+
+Do not limit the number of test files or test cases. Limit test scope, not test count.
+
+---
+
+## Acceptance Criteria Coherence
+
+Every acceptance criterion must prove the same single purpose.
+
+Split the task if acceptance criteria mention unrelated behaviors, such as:
+- schema plus logging
+- health checks plus admin commands
+- public API behavior plus private operator behavior
+- runtime deployment plus domain model behavior
+- model constraints plus workflow automation
+
+Only a final milestone integration gate may validate multiple completed task areas together.
+
+---
+
+## Integration Gate Rule
+
+Keep one final milestone integration gate when the milestone needs end-to-end validation.
+
+The integration gate must:
+- depend on all relevant milestone tasks
+- validate wiring across already-completed tasks
+- add focused integration tests and documentation for validation commands
+- fix only tiny defects found during validation
+
+The integration gate must not:
+- add new production features
+- introduce new domain behavior
+- become a catch-all for skipped implementation work
+- expand the milestone scope
 
 ---
 
@@ -151,6 +235,9 @@ What existing components or data it depends on
 ### Relevant Context
 Summarized architecture intent and key constraints from spec
 
+### Implementation Budget
+Production files, behavior count, model/API/workflow count, and focused test scope
+
 ### Expected Output
 What must exist after completion
 
@@ -174,6 +261,8 @@ When the task is considered complete
 - Ensure earlier tasks enable later ones
 - Start with foundational pieces required for end-to-end flow
 - Avoid parallel complexity
+- Dependencies should name only the exact previous tasks required
+- Do not depend on whole task ranges unless the task is the final integration gate
 
 ---
 
