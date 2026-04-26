@@ -9,13 +9,14 @@ The process is **spec-driven** and progresses through clearly defined stages, wi
 ## Skills
 
 The workflow is powered by local skills defined in agents/skills/
+Use their `SKILL.md` files as the source of truth.
 
 ---
 
 ## Workflow
 
-- when designing the specs we will manually call local skills to consequently populate design_phase folder
-- whenever you produce any code you need to use software-developer local skill
+- when designing the specs we will manually call local skills to sequentially populate design_phase folder
+- whenever producing project code, use the `software-developer` local skill
 
 ---
 
