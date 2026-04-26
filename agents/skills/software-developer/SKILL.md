@@ -44,7 +44,11 @@ Prefer targeted reads and search over loading every large design document. Prese
 - Prefer explicit failures over silent fallbacks.
 - Do not hide uncertainty: ask only when missing information creates multiple materially different valid implementations.
 - Work autonomously through solvable problems: inspect, install, configure, retry, and narrow failures yourself.
+- Do not solve problems by expanding scope beyond the task.
 - Every changed production line must trace back to the task.
+- The task file is the single source of truth for implementation scope.
+- Do NOT reinterpret, expand, or redefine the task.
+- If the task appears incomplete or inconsistent, stop and ask.
 
 ---
 
@@ -64,6 +68,8 @@ Read the task file and extract:
 - stop condition
 
 Verify dependency tasks or prerequisite code exist when the task requires them. If a dependency is missing, stop only if proceeding would force scope expansion.
+Do not reinterpret the task into a broader or different implementation.
+
 
 ## 2. Reconnaissance
 
@@ -113,6 +119,11 @@ Implement only the requested behavior.
 Respect the implementation budget from the task file. If the solution needs more production files, more behaviors, or a broader API/model/workflow surface than allowed, stop and explain the mismatch before expanding.
 
 Reuse existing project helpers and patterns. Add abstractions only when they reduce real duplication or match an established local pattern.
+
+Do not perform hidden changes.
+All meaningful changes must:
+- appear in the diff
+- be explainable in the response
 
 ## 6. Validation Loop
 
@@ -187,16 +198,14 @@ Verify:
 - no forbidden files were modified
 - no unintended coupling was introduced
 
-## 10. Commit and Push
+Output at least:
 
-When the task is complete:
+- 1–3 potential weaknesses or risks
+- 1 simplification opportunity (if any)
+- 1 potential edge case not fully covered
 
-- Commit the completed changes with a concise message.
-- Ensure the work is on `main` or merge it to `main` according to the repository workflow.
-- Push to the GitHub remote `main`.
-- Never force-push `main`.
-
-If unrelated user changes are present, do not revert them. Avoid committing unrelated files unless they are required for the task; if the repo requires a single shared commit and unrelated changes block clean staging, explain the situation.
+If none are found, explicitly state:
+"No significant issues found after critical review"
 
 ---
 
