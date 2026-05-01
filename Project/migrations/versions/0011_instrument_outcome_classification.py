@@ -1,7 +1,7 @@
 """Add opening-load outcome classification fields.
 
 Revision ID: 0011_instrument_outcome_classification
-Revises: 0010_provider_exchange_reliability_score
+Revises: 0010_provider_exchange_reliability_score_schema
 Create Date: 2026-05-01
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0011_instrument_outcome_classification"
-down_revision = "0010_provider_exchange_reliability_score"
+down_revision = "0010_provider_exchange_reliability_score_schema"
 branch_labels = None
 depends_on = None
 
