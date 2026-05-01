@@ -1,0 +1,2 @@
+"""Admin module namespace (placeholder)."""
+
