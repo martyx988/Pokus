@@ -89,3 +89,16 @@ $env:PYTHONPATH = "src"
 python -m unittest discover -s tests -v
 ```
 
+## Concrete provider runtime validation path (M3)
+
+Run this focused non-mock test to execute validation runtime against a live provider adapter and persist provider-attempt/candidate evidence:
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+$env:RUN_CONCRETE_PROVIDER_TEST = "1"
+python -m pytest -q tests/test_validation_concrete_provider_runtime.py
+```
+
+The command calls the concrete Stooq adapter (`AAPL.US`) through the normal validation orchestrator path and writes runtime evidence to `provider_attempt` and `candidate_price_value`.
+

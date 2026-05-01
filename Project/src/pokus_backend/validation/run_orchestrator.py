@@ -16,6 +16,10 @@ from pokus_backend.domain.reference_models import (
 )
 from pokus_backend.validation.calendar_validation_metrics import populate_calendar_validation_metrics
 from pokus_backend.validation.completeness_timeliness_metrics import populate_completeness_timeliness_metrics
+from pokus_backend.validation.concrete_provider_runtime import (
+    ConcreteValidationRuntimeRequest,
+    execute_concrete_provider_runtime,
+)
 from pokus_backend.validation.disagreement_benchmark_metrics import populate_disagreement_benchmark_metrics
 from pokus_backend.validation.discovery_listing_metrics import populate_discovery_listing_metrics
 
@@ -39,6 +43,7 @@ def orchestrate_launch_exchange_validation_run(
     target_exchange_codes: list[str],
     run_key: str | None = None,
     fail_reason: str | None = None,
+    concrete_runtime_requests: list[ConcreteValidationRuntimeRequest] | None = None,
 ) -> ValidationRunExecutionResult:
     run, reports = _create_or_get_run_shell(
         session=session,
@@ -59,13 +64,25 @@ def orchestrate_launch_exchange_validation_run(
         run.state = ValidationRunState.FAILED.value
         run.failure_reason = fail_reason.strip() or "validation run failed"
     else:
-        populate_discovery_listing_metrics(session, reports=reports)
-        populate_completeness_timeliness_metrics(session, reports=reports)
-        populate_disagreement_benchmark_metrics(session, reports=reports)
-        populate_calendar_validation_metrics(session, reports=reports)
-        _finalize_exchange_report_verdicts(reports)
-        run.state = ValidationRunState.SUCCEEDED.value
-        run.failure_reason = None
+        try:
+            if concrete_runtime_requests:
+                success_count = execute_concrete_provider_runtime(
+                    session,
+                    run_key=run.run_key,
+                    requests=concrete_runtime_requests,
+                )
+                if success_count == 0:
+                    raise RuntimeError("concrete provider runtime completed with zero successful provider attempts")
+            populate_discovery_listing_metrics(session, reports=reports)
+            populate_completeness_timeliness_metrics(session, reports=reports)
+            populate_disagreement_benchmark_metrics(session, reports=reports)
+            populate_calendar_validation_metrics(session, reports=reports)
+            _finalize_exchange_report_verdicts(reports)
+            run.state = ValidationRunState.SUCCEEDED.value
+            run.failure_reason = None
+        except Exception as exc:
+            run.state = ValidationRunState.FAILED.value
+            run.failure_reason = str(exc)
     run.finished_at = terminal_time
     run.updated_at = terminal_time
     session.flush()
