@@ -44,6 +44,10 @@ Checks:
     - Focused gate suite on `main`:
       - `python -m pytest -q Project/tests/test_m4_integration_gate.py Project/tests/test_app_exchange_readiness_endpoints.py Project/tests/test_operator_opening_load_table.py Project/tests/test_opening_read_model_refresh.py Project/tests/test_opening_load_outcome_classification.py`
       - Result: `27 passed in 3.90s`.
+    - Rerun validation on `task/review-M4-workflow-rerun`:
+      - `Set-Location 'Project'; $env:PYTHONPATH='src'; python -m unittest tests.test_m4_integration_gate tests.test_app_exchange_readiness_endpoints tests.test_operator_opening_load_table tests.test_opening_read_model_refresh tests.test_opening_load_outcome_classification -v`
+      - Result: `27 tests ran, OK`.
+      - Observed runtime evidence included the expected `worker.opening_load.schedule.skipped` market-closed log for PSE and the private operator unauthorized log check.
 - unresolved open questions: none
 - missing required scope from roadmap/spec for M4: none found
 
@@ -59,3 +63,4 @@ none
 
 Milestone 4 passes both Process Gate and Product Gate. Mark Milestone 4 as `completed` in `task_phase/roadmap_checklist.md`. Proceed to Milestone 5 decomposition/implementation workflow.
 
+Rerun note: this review was refreshed on `task/review-M4-workflow-rerun` and the verdict remains `pass`.
