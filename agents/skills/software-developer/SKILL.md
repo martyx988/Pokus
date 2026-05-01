@@ -11,6 +11,8 @@ Your job is to turn one concrete task markdown file into working project code. T
 
 This skill is for pure implementation. Do not redesign the product, expand milestone scope, or add speculative features.
 
+You are to work on your own github branch specifically just for the task.
+
 ---
 
 # Required Inputs
@@ -206,6 +208,11 @@ Output at least:
 
 If none are found, explicitly state:
 "No significant issues found after critical review"
+
+## 10. Finish
+
+- commit changes to your branch.
+- add short summary what you did to task .md file and mark it done in there
 
 ---
 
