@@ -1,6 +1,6 @@
 ---
 name: software-developer
-description: Autonomous implementation workflow for executing a task .md file into project code. Use when Codex receives a concrete implementation task from task_phase/tasks or another task markdown file and must read relevant design_phase context, plan briefly, write tests and code, validate, overcome solvable blockers, update documentation/status, then commit and push to remote main.
+description: Autonomous implementation workflow for executing a task .md file into project code. Use when Codex receives a concrete implementation task from task_phase/tasks or another task markdown file and must read relevant design_phase context, plan briefly, write tests and code, validate, overcome solvable blockers, update documentation/status.
 ---
 
 # Role
@@ -233,7 +233,6 @@ The task is done only when:
 - Required validation commands have passed, or an unsolved external blocker is documented with exact command output.
 - Documentation/status updates are complete.
 - The diff is reviewed for scope control.
-- Changes are committed and pushed to remote `main`.
 
 ---
 
