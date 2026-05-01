@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from pokus_backend.domain.publication_models import QualityCheck
 from pokus_backend.domain.load_tracking_models import ExchangeDayLoad, InstrumentLoadOutcome
 
 
@@ -36,6 +37,16 @@ class PublicationTerminalCoveragePrecheck:
     coverage_percent: float
     has_all_terminal_outcomes: bool
     has_gt_99_coverage: bool
+
+
+@dataclass(frozen=True, slots=True)
+class OpeningCorrectnessValidationResult:
+    benchmark_compared_count: int
+    benchmark_mismatch_count: int
+    benchmark_mismatch_percent: float | None
+    correctness_result: str
+    publication_blocked: bool
+    publication_blocked_reason: str | None
 
 
 def classify_opening_load_outcome(payload: OpeningLoadOutcomeInput) -> OpeningLoadOutcomeClassification:
@@ -198,6 +209,84 @@ def compute_publication_terminal_coverage_precheck(
     )
 
 
+def evaluate_and_persist_opening_correctness_validation(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+    benchmark_compared_count: int,
+    benchmark_mismatch_count: int,
+    validation_delayed: bool = False,
+    validation_failed: bool = False,
+    checked_at: datetime | None = None,
+) -> OpeningCorrectnessValidationResult:
+    if benchmark_compared_count < 0:
+        raise ValueError("benchmark_compared_count must be >= 0")
+    if benchmark_mismatch_count < 0:
+        raise ValueError("benchmark_mismatch_count must be >= 0")
+    if benchmark_mismatch_count > benchmark_compared_count:
+        raise ValueError("benchmark_mismatch_count must be <= benchmark_compared_count")
+
+    precheck = compute_publication_terminal_coverage_precheck(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+    )
+    mismatch_percent = (
+        None
+        if benchmark_compared_count == 0
+        else (float(benchmark_mismatch_count) * 100.0) / float(benchmark_compared_count)
+    )
+
+    if validation_delayed:
+        correctness_result = "pending"
+        publication_blocked = True
+        publication_blocked_reason = "correctness_validation_delayed"
+    elif validation_failed:
+        correctness_result = "failed"
+        publication_blocked = True
+        publication_blocked_reason = "correctness_validation_failed"
+    elif mismatch_percent is None:
+        correctness_result = "pending"
+        publication_blocked = True
+        publication_blocked_reason = "benchmark_sample_missing"
+    elif mismatch_percent > 5.0:
+        correctness_result = "failed"
+        publication_blocked = True
+        publication_blocked_reason = "benchmark_mismatch_threshold_exceeded"
+    else:
+        correctness_result = "passed"
+        publication_blocked = False
+        publication_blocked_reason = None
+
+    quality_check = _get_or_create_quality_check(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+        precheck=precheck,
+        checked_at=checked_at,
+    )
+    quality_check.correctness_result = correctness_result
+    quality_check.benchmark_mismatch_percent = mismatch_percent
+    quality_check.benchmark_mismatch_summary = _build_benchmark_mismatch_summary(
+        benchmark_compared_count=benchmark_compared_count,
+        benchmark_mismatch_count=benchmark_mismatch_count,
+        mismatch_percent=mismatch_percent,
+        publication_blocked=publication_blocked,
+        publication_blocked_reason=publication_blocked_reason,
+    )
+    quality_check.publication_blocked = publication_blocked
+    quality_check.publication_blocked_reason = publication_blocked_reason
+    quality_check.checked_at = _as_utc(checked_at) or datetime.now(timezone.utc)
+    session.flush()
+
+    return OpeningCorrectnessValidationResult(
+        benchmark_compared_count=benchmark_compared_count,
+        benchmark_mismatch_count=benchmark_mismatch_count,
+        benchmark_mismatch_percent=mismatch_percent,
+        correctness_result=correctness_result,
+        publication_blocked=publication_blocked,
+        publication_blocked_reason=publication_blocked_reason,
+    )
+
+
 def _count_terminal_outcomes_for_exchange_day(
     session: Session,
     *,
@@ -242,3 +331,53 @@ def _as_utc(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _get_or_create_quality_check(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+    precheck: PublicationTerminalCoveragePrecheck,
+    checked_at: datetime | None,
+) -> QualityCheck:
+    existing = session.scalar(
+        select(QualityCheck).where(QualityCheck.exchange_day_load_id == exchange_day_load_id)
+    )
+    if existing is not None:
+        return existing
+
+    quality_check = QualityCheck(
+        exchange_day_load_id=exchange_day_load_id,
+        eligible_count=precheck.eligible_count,
+        succeeded_count=precheck.covered_count,
+        failed_count=max(0, precheck.terminal_outcome_count - precheck.covered_count),
+        coverage_percent=precheck.coverage_percent,
+        correctness_result="pending",
+        checked_at=_as_utc(checked_at) or datetime.now(timezone.utc),
+    )
+    session.add(quality_check)
+    session.flush()
+    return quality_check
+
+
+def _build_benchmark_mismatch_summary(
+    *,
+    benchmark_compared_count: int,
+    benchmark_mismatch_count: int,
+    mismatch_percent: float | None,
+    publication_blocked: bool,
+    publication_blocked_reason: str | None,
+) -> str:
+    if mismatch_percent is None:
+        base = (
+            f"Compared {benchmark_compared_count} benchmark instruments; "
+            f"mismatches {benchmark_mismatch_count}."
+        )
+    else:
+        base = (
+            f"Compared {benchmark_compared_count} benchmark instruments; "
+            f"mismatches {benchmark_mismatch_count} ({mismatch_percent:.4f}%)."
+        )
+    if publication_blocked and publication_blocked_reason:
+        return f"{base} Publication blocked: {publication_blocked_reason}."
+    return base

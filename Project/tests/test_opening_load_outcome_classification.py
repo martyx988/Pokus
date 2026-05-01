@@ -8,10 +8,12 @@ from sqlalchemy.orm import Session
 
 from pokus_backend.domain import Base, Exchange, Instrument, InstrumentType, Listing
 from pokus_backend.domain.load_tracking_models import ExchangeDayLoad
+from pokus_backend.domain.publication_models import QualityCheck
 from pokus_backend.jobs.opening_load_outcomes import (
     OpeningLoadOutcomeInput,
     classify_opening_load_outcome,
     compute_publication_terminal_coverage_precheck,
+    evaluate_and_persist_opening_correctness_validation,
     upsert_opening_load_outcome,
 )
 
@@ -30,6 +32,7 @@ class OpeningLoadOutcomeClassificationTests(unittest.TestCase):
                 Exchange.__table__,
                 ExchangeDayLoad.__table__,
                 Base.metadata.tables["instrument_load_outcome"],
+                QualityCheck.__table__,
             ],
         )
         self.session = Session(self.engine)
@@ -276,6 +279,82 @@ class OpeningLoadOutcomeClassificationTests(unittest.TestCase):
         self.assertFalse(precheck.has_all_terminal_outcomes)
         self.assertEqual(precheck.coverage_percent, 50.0)
         self.assertFalse(precheck.has_gt_99_coverage)
+
+    def test_correctness_validation_passes_at_or_below_5_percent_mismatch(self) -> None:
+        self._seed_precheck_population(total=100, succeeded=100, failed=0)
+
+        at_threshold = evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=20,
+            benchmark_mismatch_count=1,
+        )
+        self.assertEqual(at_threshold.benchmark_mismatch_percent, 5.0)
+        self.assertEqual(at_threshold.correctness_result, "passed")
+        self.assertFalse(at_threshold.publication_blocked)
+
+        below_threshold = evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=21,
+            benchmark_mismatch_count=1,
+        )
+        self.assertLess(below_threshold.benchmark_mismatch_percent, 5.0)
+        self.assertEqual(below_threshold.correctness_result, "passed")
+        self.assertFalse(below_threshold.publication_blocked)
+
+    def test_correctness_validation_blocks_above_5_percent_mismatch(self) -> None:
+        self._seed_precheck_population(total=100, succeeded=100, failed=0)
+
+        result = evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=19,
+            benchmark_mismatch_count=1,
+        )
+        self.session.commit()
+
+        self.assertGreater(result.benchmark_mismatch_percent, 5.0)
+        self.assertEqual(result.correctness_result, "failed")
+        self.assertTrue(result.publication_blocked)
+        self.assertEqual(result.publication_blocked_reason, "benchmark_mismatch_threshold_exceeded")
+
+        row = self.session.query(QualityCheck).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.correctness_result, "failed")
+        self.assertEqual(row.benchmark_mismatch_percent, result.benchmark_mismatch_percent)
+        self.assertTrue(row.publication_blocked)
+        self.assertEqual(row.publication_blocked_reason, "benchmark_mismatch_threshold_exceeded")
+
+    def test_correctness_validation_blocks_when_delayed_or_failed(self) -> None:
+        self._seed_precheck_population(total=100, succeeded=100, failed=0)
+
+        delayed = evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=20,
+            benchmark_mismatch_count=0,
+            validation_delayed=True,
+        )
+        self.assertEqual(delayed.correctness_result, "pending")
+        self.assertTrue(delayed.publication_blocked)
+        self.assertEqual(delayed.publication_blocked_reason, "correctness_validation_delayed")
+
+        failed = evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=20,
+            benchmark_mismatch_count=0,
+            validation_failed=True,
+        )
+        self.session.commit()
+        self.assertEqual(failed.correctness_result, "failed")
+        self.assertTrue(failed.publication_blocked)
+        self.assertEqual(failed.publication_blocked_reason, "correctness_validation_failed")
+
+        row = self.session.query(QualityCheck).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.correctness_result, "failed")
+        self.assertTrue(row.publication_blocked)
+        self.assertEqual(row.publication_blocked_reason, "correctness_validation_failed")
 
     def _seed_precheck_population(self, *, total: int, succeeded: int, failed: int) -> None:
         self.assertEqual(succeeded + failed, total)

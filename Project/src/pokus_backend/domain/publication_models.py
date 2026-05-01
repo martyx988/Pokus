@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pokus_backend.domain.reference_models import Base
@@ -65,4 +65,6 @@ class QualityCheck(Base):
     correctness_result: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     benchmark_mismatch_percent: Mapped[float | None] = mapped_column(Float(), nullable=True)
     benchmark_mismatch_summary: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    publication_blocked: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
+    publication_blocked_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
