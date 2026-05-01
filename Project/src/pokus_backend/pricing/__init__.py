@@ -5,6 +5,10 @@ from pokus_backend.pricing.adapter import (
     ProviderPriceAdapter,
     normalize_price_candidate_payloads,
 )
+from pokus_backend.pricing.candidate_value_persistence import (
+    CandidateSetAuditEvidence,
+    persist_candidate_price_values,
+)
 from pokus_backend.pricing.contract import PriceCandidate, PriceType, candidate_from_payload
 
 __all__ = [
@@ -12,6 +16,8 @@ __all__ = [
     "PriceCandidateRequest",
     "PriceType",
     "ProviderPriceAdapter",
+    "CandidateSetAuditEvidence",
     "candidate_from_payload",
     "normalize_price_candidate_payloads",
+    "persist_candidate_price_values",
 ]

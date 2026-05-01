@@ -2,6 +2,7 @@
 
 from pokus_backend.domain.admin_audit import AdminCommand, AdminCommandType, AuditRecord
 from pokus_backend.domain.instrument_models import (
+    CandidatePriceValue,
     IdentifierRecord,
     Instrument,
     Listing,
@@ -18,6 +19,7 @@ __all__ = [
     "AdminCommandType",
     "AuditRecord",
     "Base",
+    "CandidatePriceValue",
     "Exchange",
     "IdentifierRecord",
     "Instrument",

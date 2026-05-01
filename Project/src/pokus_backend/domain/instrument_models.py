@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import enum
+from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     Enum,
     ForeignKey,
     Integer,
@@ -56,6 +59,7 @@ class Listing(Base):
     identifiers: Mapped[list["IdentifierRecord"]] = relationship(back_populates="listing")
     support_state: Mapped["SupportedUniverseState"] = relationship(back_populates="listing", uselist=False)
     price_records: Mapped[list["PriceRecord"]] = relationship(back_populates="listing")
+    candidate_price_values: Mapped[list["CandidatePriceValue"]] = relationship(back_populates="listing")
 
 
 class IdentifierRecord(Base):
@@ -124,5 +128,36 @@ class PriceRecord(Base):
     provider_attempt_id: Mapped[int | None] = mapped_column(ForeignKey("provider_attempt.id"), nullable=True)
 
     listing: Mapped["Listing"] = relationship(back_populates="price_records")
+    provider_attempt: Mapped["ProviderAttempt | None"] = relationship()
+
+
+class CandidatePriceValue(Base):
+    __tablename__ = "candidate_price_value"
+    __table_args__ = (
+        CheckConstraint(
+            "price_type IN ('historical_adjusted_close','current_day_unadjusted_open')",
+            name="ck_candidate_price_value_price_type",
+        ),
+        CheckConstraint("length(trim(candidate_key)) > 0", name="ck_candidate_price_value_candidate_key_nonempty"),
+        CheckConstraint("length(trim(candidate_set_key)) > 0", name="ck_candidate_price_value_set_key_nonempty"),
+        UniqueConstraint("candidate_key", name="uq_candidate_price_value_candidate_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    candidate_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    candidate_set_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id"), nullable=False)
+    provider_id: Mapped[int] = mapped_column(ForeignKey("provider.id"), nullable=False)
+    provider_attempt_id: Mapped[int | None] = mapped_column(ForeignKey("provider_attempt.id"), nullable=True)
+    trading_date: Mapped[Date] = mapped_column(Date, nullable=False)
+    price_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    value: Mapped[float] = mapped_column(Numeric(20, 8), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    provider_request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    provider_observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    audit_metadata: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+
+    listing: Mapped["Listing"] = relationship(back_populates="candidate_price_values")
+    provider: Mapped["Provider"] = relationship()
     provider_attempt: Mapped["ProviderAttempt | None"] = relationship()
 
