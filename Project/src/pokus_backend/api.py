@@ -5,11 +5,13 @@ import json
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 import psycopg
 
 from pokus_backend.auth import authorize_path
 from pokus_backend.db import check_database_connection
+from pokus_backend.observability.health import collect_platform_health
 from pokus_backend.settings import load_settings
 
 
@@ -27,6 +29,17 @@ class HealthHandler(BaseHTTPRequestHandler):
                 {"role": "api", "status": "ok", "environment": settings.environment},
             )
             return
+        if self.path == "/operator/health":
+            payload = collect_platform_health(
+                settings.database_url,
+                worker_stale_after_seconds=max(30.0, settings.worker_poll_seconds * 3),
+                scheduler_stale_after_seconds=max(60.0, settings.worker_poll_seconds * 6),
+            )
+            status = HTTPStatus.OK if payload["status"] == "ok" else HTTPStatus.SERVICE_UNAVAILABLE
+            payload["role"] = "api"
+            payload["environment"] = settings.environment
+            self._send_json(status, payload)
+            return
 
         if self.path.startswith("/app/"):
             self._send_json(HTTPStatus.OK, {"boundary": "public_app", "status": "ok"})
@@ -40,7 +53,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 
         self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
 
-    def _send_json(self, status: HTTPStatus, body: dict[str, str]) -> None:
+    def _send_json(self, status: HTTPStatus, body: dict[str, Any]) -> None:
         encoded = json.dumps(body).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")

@@ -7,6 +7,7 @@ import time
 import psycopg
 
 from pokus_backend.db import check_database_connection
+from pokus_backend.observability.health import upsert_runtime_heartbeat
 from pokus_backend.settings import load_settings
 
 
@@ -16,6 +17,12 @@ def run_once() -> None:
         f"worker-tick env={settings.environment} "
         f"db={settings.database_url} poll={settings.worker_poll_seconds}"
     )
+    try:
+        upsert_runtime_heartbeat(settings.database_url, "worker")
+        upsert_runtime_heartbeat(settings.database_url, "scheduler")
+    except psycopg.Error:
+        # Heartbeats are best-effort so local/dev ticks can run without a database.
+        pass
 
 
 def main() -> int:
