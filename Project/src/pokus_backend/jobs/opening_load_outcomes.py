@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from pokus_backend.domain.publication_models import PublicationRecord, QualityCheck
 from pokus_backend.domain.load_tracking_models import ExchangeDayLoad, InstrumentLoadOutcome
+from pokus_backend.jobs.opening_read_model_refresh import refresh_publication_read_models
 
 
 @dataclass(frozen=True, slots=True)
@@ -328,6 +329,10 @@ def decide_and_persist_opening_publication_status(
     publication_record.status_updated_at = now_utc
     publication_record.published_at = now_utc if publication_status == "ready" else None
     session.flush()
+    refresh_publication_read_models(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+    )
 
     return OpeningPublicationDecisionResult(
         publication_status=publication_status,
