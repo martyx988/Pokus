@@ -13,6 +13,7 @@ import psycopg
 from pokus_backend.admin.scope_config import set_supported_exchanges, set_supported_instrument_types
 from pokus_backend.auth import authorize_path
 from pokus_backend.db import check_database_connection
+from pokus_backend.discovery.app_current_day_prices import fetch_current_app_exchange_current_day_prices
 from pokus_backend.discovery.app_exchange_readiness import (
     fetch_app_exchange_readiness,
     fetch_current_app_exchange_readiness,
@@ -140,6 +141,21 @@ class HealthHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(HTTPStatus.OK, {"exchange_readiness": self._serialize_readiness_row(row)})
             return
+        if request_path.startswith("/app/exchanges/") and request_path.endswith("/prices/current"):
+            exchange_code = request_path[len("/app/exchanges/") : -len("/prices/current")]
+            if not exchange_code:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Exchange code is required."})
+                return
+            try:
+                row = fetch_current_app_exchange_current_day_prices(settings.database_url, exchange_code=exchange_code)
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            if row is None:
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "No ready current-day opening prices available."})
+                return
+            self._send_json(HTTPStatus.OK, {"exchange_current_day_prices": self._serialize_current_day_price_row(row)})
+            return
 
         if request_path.startswith("/app/"):
             self._send_json(HTTPStatus.OK, {"boundary": "public_app", "status": "ok"})
@@ -181,6 +197,21 @@ class HealthHandler(BaseHTTPRequestHandler):
             "readiness_state": row.readiness_state,
             "publication_status": row.publication_status,
             "publication_available": row.publication_available,
+        }
+
+    def _serialize_current_day_price_row(self, row: Any) -> dict[str, Any]:
+        return {
+            "exchange": row.exchange,
+            "trading_date": row.trading_date,
+            "current_day_prices": [
+                {
+                    "listing_id": price.listing_id,
+                    "symbol": price.symbol,
+                    "value": str(price.value),
+                    "currency": price.currency,
+                }
+                for price in row.current_day_prices
+            ],
         }
 
     def log_message(self, *_args) -> None:
