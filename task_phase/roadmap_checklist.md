@@ -12,7 +12,7 @@ Allowed statuses:
 | Milestone 1: Platform Skeleton and Domain Foundation | completed |
 | Milestone 2: Admin Scope, Calendar, and Universe Discovery Slice | completed |
 | Milestone 3: Provider Validation and Source Prioritization Foundation | completed |
-| Milestone 4: Core Daily Opening Publication Slice | tasks created |
+| Milestone 4: Core Daily Opening Publication Slice | completed |
 | Milestone 5: Historical Close Loading and 30-Day App Bootstrap | not started |
 | Milestone 6: Initial Historical Fill and Signal Baseline | not started |
 | Milestone 7: Daily Signal Publication and App Signal Reads | not started |
