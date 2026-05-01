@@ -16,6 +16,11 @@ This folder contains the initial backend skeleton for a modular monolith with se
 - `API_HOST` (default: `127.0.0.1`)
 - `API_PORT` (default: `8000`)
 - `WORKER_POLL_SECONDS` (default: `5`)
+- `APP_READ_TOKEN` (default: `dev-app-token`)
+- `OPERATOR_SESSION_TOKEN` (default: `dev-operator-token`)
+- `ADMIN_SESSION_TOKEN` (default: `dev-admin-token`)
+
+Copy `.env.example` to your local environment before running checks.
 
 ## Start API role
 
@@ -26,6 +31,12 @@ python -m pokus_backend.api
 ```
 
 Health endpoint: `GET /health`
+
+Auth boundary placeholder endpoints:
+
+- `GET /app/*` with `X-App-Token: <APP_READ_TOKEN>`
+- `GET /operator/*` with `X-Private-Session: <OPERATOR_SESSION_TOKEN|ADMIN_SESSION_TOKEN>`
+- `GET /admin/*` with `X-Private-Session: <ADMIN_SESSION_TOKEN>`
 
 ## Start worker role
 
@@ -41,6 +52,17 @@ Run one worker cycle:
 cd Project
 $env:PYTHONPATH = "src"
 python -m pokus_backend.worker --once
+```
+
+## Database checks and migrations
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+python -m pokus_backend.api --check
+python -m pokus_backend.worker --check
+python -m pokus_backend.db --check
+python -m pokus_backend.db --migrate
 ```
 
 ## Smoke checks

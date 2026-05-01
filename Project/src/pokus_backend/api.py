@@ -2,27 +2,47 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import psycopg
+
+from pokus_backend.auth import authorize_path
+from pokus_backend.db import check_database_connection
 from pokus_backend.settings import load_settings
 
 
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
-        if self.path != "/health":
-            self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
+        settings = load_settings()
+        auth = authorize_path(self.path, self.headers, settings)
+        if not auth.allowed:
+            self._send_json(auth.status, {"error": "unauthorized"})
             return
 
-        settings = load_settings()
-        body = {
-            "role": "api",
-            "status": "ok",
-            "environment": settings.environment,
-        }
-        encoded = json.dumps(body).encode("utf-8")
+        if self.path == "/health":
+            self._send_json(
+                HTTPStatus.OK,
+                {"role": "api", "status": "ok", "environment": settings.environment},
+            )
+            return
 
-        self.send_response(HTTPStatus.OK)
+        if self.path.startswith("/app/"):
+            self._send_json(HTTPStatus.OK, {"boundary": "public_app", "status": "ok"})
+            return
+        if self.path.startswith("/operator/"):
+            self._send_json(HTTPStatus.OK, {"boundary": "operator", "status": "ok"})
+            return
+        if self.path.startswith("/admin/"):
+            self._send_json(HTTPStatus.OK, {"boundary": "admin", "status": "ok"})
+            return
+
+        self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
+
+    def _send_json(self, status: HTTPStatus, body: dict[str, str]) -> None:
+        encoded = json.dumps(body).encode("utf-8")
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
@@ -39,6 +59,14 @@ def main() -> int:
 
     settings = load_settings()
     if args.check:
+        try:
+            check_database_connection(settings.database_url)
+        except psycopg.OperationalError as exc:
+            print(
+                f"api-check-failed env={settings.environment} db={settings.database_url} error={exc}",
+                file=sys.stderr,
+            )
+            return 1
         print(f"api-check-ok env={settings.environment} db={settings.database_url}")
         return 0
 

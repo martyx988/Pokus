@@ -11,6 +11,9 @@ class Settings:
     api_host: str
     api_port: int
     worker_poll_seconds: float
+    app_read_token: str
+    operator_session_token: str
+    admin_session_token: str
 
 
 def load_settings() -> Settings:
@@ -20,5 +23,8 @@ def load_settings() -> Settings:
         api_host=os.getenv("API_HOST", "127.0.0.1"),
         api_port=int(os.getenv("API_PORT", "8000")),
         worker_poll_seconds=float(os.getenv("WORKER_POLL_SECONDS", "5")),
+        app_read_token=os.getenv("APP_READ_TOKEN", "dev-app-token"),
+        operator_session_token=os.getenv("OPERATOR_SESSION_TOKEN", "dev-operator-token"),
+        admin_session_token=os.getenv("ADMIN_SESSION_TOKEN", "dev-admin-token"),
     )
 
