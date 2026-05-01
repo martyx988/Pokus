@@ -59,6 +59,12 @@ Note:
 Write:
 - `task_phase/reviews/<milestone>_workflow_review.md`
 
+Single-file policy:
+- This is the only review artifact allowed under `task_phase/reviews/` for that milestone.
+- Do not create sibling files like `<milestone>_gaps.md`, `<milestone>_ledger.md`, or dated waiver files.
+- If evidence/gaps/waivers are needed, store them as sections inside the same review file.
+- On rerun for the same milestone, update the existing review file in place (refresh sections and verdict); do not create additional milestone review files.
+
 This file must include:
 - `Verdict: pass|blocked`
 - Process Gate results
