@@ -212,7 +212,11 @@ If none are found, explicitly state:
 ## 10. Finish
 
 - commit changes to your branch.
-- add short summary what you did to task .md file and mark it done in there
+- update task `.md` with canonical completion block (exact headings):
+  - `### Status`
+  - `Done.`
+  - `### Completion Summary`
+  - short bullet list (or short paragraph) of what was implemented
 
 ---
 

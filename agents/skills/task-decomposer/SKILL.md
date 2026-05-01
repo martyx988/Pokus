@@ -253,6 +253,13 @@ Previous tasks required before this one
 ### Stop Condition
 When the task is considered complete
 
+### Completion Format
+Implementation agent must finish task file with:
+- `### Status`
+- `Done.`
+- `### Completion Summary`
+- concise summary of completed work
+
 ---
 
 # Task Sequencing

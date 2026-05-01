@@ -16,12 +16,14 @@ Use their `SKILL.md` files as the source of truth.
 ## Workflow
 
 - when designing the specs we will manually call local skills to sequentially populate design_phase folder
+- design phase work runs in main-agent chat flow (no orchestration/subagents by default)
 - whenever producing project code, use the `software-developer` local skill
 
 ---
 
 ## Orchestration Workflow
 
+- orchestration/subagent workflow is for implementation phase only
 - One subagent = one task = one branch (`task/<milestone>-<task-id>-<short-name>`). Never commit directly to `main`.
 - Spawn subagents with clean context (no parent/main-agent context). Prompt only task implementation using `software-developer` skill.
 - Subagent output must include: task id, branch name, commit SHA, changed files, tests run/results, and task `.md` status update.
