@@ -1,8 +1,12 @@
 # M2 Workflow Review
 
-Verdict: pass
+Verdict: blocked
+
+Review date: 2026-05-01
 
 ## Process Gate
+
+Overall: pass
 
 ### Check: one task = one subagent branch
 - Pass.
@@ -10,7 +14,7 @@ Verdict: pass
   - Milestone 2 task branches exist for `task/m2-t21-...` through `task/m2-t31-...`.
   - Each task reports its own branch and commit SHA in subagent completion output.
 
-### Check: no direct subagent implementation on `main`
+### Check: no direct subagent implementation on main
 - Pass.
 - Evidence:
   - Task implementation commits on `main` are integrated from task commit SHAs via cherry-pick.
@@ -47,6 +51,8 @@ Verdict: pass
 
 ## Product Gate
 
+Overall: blocked
+
 ### Check: milestone task acceptance criteria satisfied
 - Pass.
 - Evidence:
@@ -54,27 +60,36 @@ Verdict: pass
   - Scope chain is complete from admin scope config through app supported-universe read.
 
 ### Check: milestone-level validation/integration checks present and pass
-- Pass.
+- Fail.
 - Evidence:
-  - T31 adds `Project/tests/test_m2_integration_gate.py`.
-  - Reviewer rerun command:
-    - `PYTHONPATH=src python -m unittest tests.test_m2_integration_gate -v`
-    - Result: `OK` (1 test, run on May 1, 2026).
+  - Validation command rerun from `Project/`:
+    - `$env:PYTHONPATH='src'; python -m unittest tests.test_m2_integration_gate -v`
+  - Result:
+    - `ERROR` in `setUpClass`
+    - `sqlalchemy.exc.NoReferencedTableError: Foreign key associated with column 'exchange_day_load.job_id' could not find table 'load_jobs' with which to generate a foreign key to target column 'id'`
+  - This means the M2 integration gate does not currently complete successfully in this workspace.
 
 ### Check: no unresolved open questions
-- Pass.
+- Fail.
+- Open question:
+  - Is the failing integration gate caused by missing model import wiring for `load_jobs`, or does the production metadata still omit that table from the M2 test bootstrap path?
 
 ### Check: no missing required milestone scope from roadmap/spec
-- Pass.
+- Fail.
 - Evidence:
-  - M2 required chain present: admin scope, launch baseline records, calendar resolver, discovery contract, candidate persistence, ranking, exchange priority recompute path, supported-universe projection, universe-change events, app supported-universe endpoint, and integration gate.
+  - The milestone cannot be treated as complete while the focused M2 integration gate fails during model setup.
 
 ## Failed Checks
-- none
+
+- `tests.test_m2_integration_gate` fails during `setUpClass` because SQLAlchemy cannot resolve `exchange_day_load.job_id` to the `load_jobs` table.
+- Milestone-level validation/integration evidence is therefore not passing at rerun time.
+- The blocked review leaves M2 completeness unproven until the metadata/bootstrap gap is closed.
 
 ## Open Questions
-- none
+
+- Is the failing integration gate a test bootstrap/import problem, or a real metadata wiring gap in the production model set?
 
 ## Final Recommendation
-- Milestone 2 is complete and may remain marked `completed`.
-- Proceed to Milestone 3 decomposition/implementation workflow when ready.
+
+- Mark Milestone 2 `in progress` until the M2 integration gate can be rerun successfully.
+- Close the `load_jobs` metadata/bootstrap gap, then rerun the milestone review and integration gate before restoring `completed`.
