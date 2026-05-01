@@ -4,10 +4,12 @@ import enum
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     Enum,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -53,6 +55,7 @@ class Listing(Base):
     instrument: Mapped["Instrument"] = relationship(back_populates="listings")
     identifiers: Mapped[list["IdentifierRecord"]] = relationship(back_populates="listing")
     support_state: Mapped["SupportedUniverseState"] = relationship(back_populates="listing", uselist=False)
+    price_records: Mapped[list["PriceRecord"]] = relationship(back_populates="listing")
 
 
 class IdentifierRecord(Base):
@@ -95,3 +98,31 @@ class SupportedUniverseState(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     listing: Mapped["Listing"] = relationship(back_populates="support_state")
+
+
+class PriceRecord(Base):
+    __tablename__ = "price_record"
+    __table_args__ = (
+        CheckConstraint(
+            "price_type IN ('historical_adjusted_close','current_day_unadjusted_open')",
+            name="ck_price_record_price_type",
+        ),
+        UniqueConstraint(
+            "listing_id",
+            "trading_date",
+            "price_type",
+            name="uq_price_record_listing_date_type",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id"), nullable=False)
+    trading_date: Mapped[Date] = mapped_column(Date, nullable=False)
+    price_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    value: Mapped[float] = mapped_column(Numeric(20, 8), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    provider_attempt_id: Mapped[int | None] = mapped_column(ForeignKey("provider_attempt.id"), nullable=True)
+
+    listing: Mapped["Listing"] = relationship(back_populates="price_records")
+    provider_attempt: Mapped["ProviderAttempt | None"] = relationship()
+

@@ -5,10 +5,12 @@ from pokus_backend.domain.instrument_models import (
     IdentifierRecord,
     Instrument,
     Listing,
+    PriceRecord,
     SupportedUniverseState,
     SupportedUniverseStatus,
 )
 from pokus_backend.domain.reference_models import Base, Exchange, InstrumentType
+from pokus_backend.domain.universe_change_models import UniverseChangeEventType, UniverseChangeRecord
 
 __all__ = [
     "AdminCommand",
@@ -20,7 +22,10 @@ __all__ = [
     "Instrument",
     "InstrumentType",
     "Listing",
+    "PriceRecord",
     "SupportedUniverseState",
     "SupportedUniverseStatus",
+    "UniverseChangeEventType",
+    "UniverseChangeRecord",
 ]
 
