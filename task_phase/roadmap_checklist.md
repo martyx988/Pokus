@@ -10,7 +10,7 @@ Allowed statuses:
 | Milestone | Status |
 | --- | --- |
 | Milestone 1: Platform Skeleton and Domain Foundation | completed |
-| Milestone 2: Admin Scope, Calendar, and Universe Discovery Slice | tasks created |
+| Milestone 2: Admin Scope, Calendar, and Universe Discovery Slice | completed |
 | Milestone 3: Provider Validation and Source Prioritization Foundation | not started |
 | Milestone 4: Core Daily Opening Publication Slice | not started |
 | Milestone 5: Historical Close Loading and 30-Day App Bootstrap | not started |
