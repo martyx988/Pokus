@@ -11,6 +11,12 @@ from pokus_backend.jobs.opening_load_scheduler import (
     build_opening_load_job_idempotency_key,
     schedule_today_opening_load_jobs,
 )
+from pokus_backend.jobs.opening_load_outcomes import (
+    OpeningLoadOutcomeClassification,
+    OpeningLoadOutcomeInput,
+    classify_opening_load_outcome,
+    upsert_opening_load_outcome,
+)
 from pokus_backend.jobs.opening_load_worker import (
     OpeningLoadInstrumentResult,
     OpeningLoadSourcePolicy,
@@ -34,9 +40,13 @@ __all__ = [
     "TERMINAL_LOAD_JOB_STATES",
     "build_opening_load_job_idempotency_key",
     "can_transition_load_job_state",
+    "classify_opening_load_outcome",
     "execute_opening_load_for_instrument_day",
     "is_terminal_load_job_state",
+    "OpeningLoadOutcomeClassification",
+    "OpeningLoadOutcomeInput",
     "schedule_today_opening_load_jobs",
     "transition_load_job_state",
+    "upsert_opening_load_outcome",
 ]
 

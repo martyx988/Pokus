@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pokus_backend.domain.reference_models import Base
@@ -64,6 +64,10 @@ class InstrumentLoadOutcome(Base):
             "outcome IN ('pending','in_progress','succeeded','failed','cancelled')",
             name="ck_instrument_load_outcome_outcome",
         ),
+        CheckConstraint(
+            "outcome_class IN ('success','missing','stale','halted','suspended','late_open','provider_failed')",
+            name="ck_instrument_load_outcome_outcome_class",
+        ),
         UniqueConstraint(
             "exchange_day_load_id",
             "listing_id",
@@ -79,5 +83,7 @@ class InstrumentLoadOutcome(Base):
     listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id"), nullable=False)
     job_id: Mapped[int | None] = mapped_column(ForeignKey("load_jobs.id"), nullable=True)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    outcome_class: Mapped[str] = mapped_column(String(32), nullable=False, default="missing")
+    is_terminal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     failure_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
