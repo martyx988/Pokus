@@ -14,6 +14,7 @@ from pokus_backend.domain.reference_models import (
     ValidationRunState,
     ValidationVerdict,
 )
+from pokus_backend.validation.discovery_listing_metrics import populate_discovery_listing_metrics
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +49,7 @@ def orchestrate_launch_exchange_validation_run(
         run.state = ValidationRunState.FAILED.value
         run.failure_reason = fail_reason.strip() or "validation run failed"
     else:
+        populate_discovery_listing_metrics(session, reports=reports)
         run.state = ValidationRunState.SUCCEEDED.value
         run.failure_reason = None
     run.finished_at = terminal_time
