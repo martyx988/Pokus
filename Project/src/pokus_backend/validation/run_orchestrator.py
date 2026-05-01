@@ -14,6 +14,7 @@ from pokus_backend.domain.reference_models import (
     ValidationRunState,
     ValidationVerdict,
 )
+from pokus_backend.validation.calendar_validation_metrics import populate_calendar_validation_metrics
 from pokus_backend.validation.completeness_timeliness_metrics import populate_completeness_timeliness_metrics
 from pokus_backend.validation.disagreement_benchmark_metrics import populate_disagreement_benchmark_metrics
 from pokus_backend.validation.discovery_listing_metrics import populate_discovery_listing_metrics
@@ -54,6 +55,7 @@ def orchestrate_launch_exchange_validation_run(
         populate_discovery_listing_metrics(session, reports=reports)
         populate_completeness_timeliness_metrics(session, reports=reports)
         populate_disagreement_benchmark_metrics(session, reports=reports)
+        populate_calendar_validation_metrics(session, reports=reports)
         run.state = ValidationRunState.SUCCEEDED.value
         run.failure_reason = None
     run.finished_at = terminal_time
