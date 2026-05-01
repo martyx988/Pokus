@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -81,4 +81,38 @@ class ProviderAttempt(Base):
     normalized_metadata: Mapped[dict[str, object] | None] = mapped_column("metadata", JSON, nullable=True)
 
     provider: Mapped[Provider] = relationship(back_populates="attempts")
+    exchange: Mapped[Exchange] = relationship()
+
+
+class ProviderExchangeReliabilityScore(Base):
+    __tablename__ = "provider_exchange_reliability_score"
+    __table_args__ = (
+        CheckConstraint(
+            "reliability_score >= 0 AND reliability_score <= 1",
+            name="ck_provider_exchange_reliability_score_range",
+        ),
+        CheckConstraint(
+            "observations_count >= 0",
+            name="ck_provider_exchange_reliability_observations_nonnegative",
+        ),
+        CheckConstraint(
+            "last_window_key IS NULL OR length(trim(last_window_key)) > 0",
+            name="ck_provider_exchange_reliability_last_window_key_nonempty",
+        ),
+        UniqueConstraint(
+            "provider_id",
+            "exchange_id",
+            name="uq_provider_exchange_reliability_scope",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    provider_id: Mapped[int] = mapped_column(ForeignKey("provider.id"), nullable=False)
+    exchange_id: Mapped[int] = mapped_column(ForeignKey("exchange.id"), nullable=False)
+    reliability_score: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False, default=0.5)
+    observations_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_window_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    provider: Mapped[Provider] = relationship()
     exchange: Mapped[Exchange] = relationship()
