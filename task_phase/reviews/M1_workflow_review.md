@@ -1,6 +1,6 @@
 # M1 Workflow Review
 
-Verdict: blocked
+Verdict: pass
 
 ## Provenance Evidence
 
@@ -14,7 +14,7 @@ Verdict: blocked
 - `no direct subagent implementation on main`: **waived for M1**
 - `each task has traceable commit(s)`: **passed via M1 provenance ledger**
 - `each task file marked done with short summary`: **partial/failed**
-  - Most tasks include done summaries, but completion formatting is inconsistent (`### Status` block missing in some files).
+  - Resolved by T19 normalization; M1 tasks now use canonical completion status blocks.
 - `merges to origin/main complete/coherent`: **passed**
   - M1 task commits are present on `origin/main`.
 
@@ -30,8 +30,7 @@ Verdict: blocked
 
 ## Failed Checks
 
-1. Inconsistent task completion-status formatting in some M1 task files.
-2. Live PostgreSQL integration gate execution unavailable in current environment; closed by explicit waiver record.
+- none
 
 ## Open Questions
 
@@ -45,4 +44,4 @@ Verdict: blocked
 
 ## Final Recommendation
 
-Keep M1 in `in progress` until process-formatting gap is closed. Product live-gate evidence blocker is resolved by T20 waiver path.
+Mark M1 `completed`. Process and product gates are satisfied (with explicit legacy process-policy waiver and explicit T20 live-gate waiver record).
