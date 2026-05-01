@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from pokus_backend.discovery.supported_universe import project_supported_universe_state
-from pokus_backend.domain import Base, Exchange, Instrument, InstrumentType, Listing, SupportedUniverseState
+from pokus_backend.domain import (
+    Base,
+    Exchange,
+    Instrument,
+    InstrumentType,
+    Listing,
+    SupportedUniverseState,
+    SupportedUniverseStatus,
+    UniverseChangeRecord,
+)
+from pokus_backend.domain.universe_change_models import UniverseChangeEventType
 
 
 class SupportedUniverseProjectionTests(unittest.TestCase):
@@ -55,12 +66,52 @@ class SupportedUniverseProjectionTests(unittest.TestCase):
             selected_listing_ids=[self.a_xnas.id, self.b_nyse.id, self.c_xpra.id],
             supported_exchange_codes=["NYSE", "XNAS"],
             supported_instrument_type_codes=["STOCK"],
+            effective_day=date(2026, 2, 1),
         )
         self.session.commit()
 
         states = self.session.scalars(select(SupportedUniverseState).order_by(SupportedUniverseState.listing_id)).all()
         self.assertEqual(result.supported_listing_ids, (self.a_xnas.id, self.b_nyse.id))
         self.assertEqual([state.listing_id for state in states], [self.a_xnas.id, self.b_nyse.id])
+        events = self.session.scalars(select(UniverseChangeRecord).order_by(UniverseChangeRecord.id.asc())).all()
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0].event_type, UniverseChangeEventType.ADDED)
+        self.assertEqual(events[1].event_type, UniverseChangeEventType.ADDED)
+
+    def test_projection_records_restored_excluded_degraded_and_removed_events(self) -> None:
+        self.session.add_all(
+            [
+                SupportedUniverseState(listing_id=self.a_nyse.id, status=SupportedUniverseStatus.DELISTING_SUSPECTED),
+                SupportedUniverseState(listing_id=self.a_xnas.id, status=SupportedUniverseStatus.SUPPORTED),
+                SupportedUniverseState(listing_id=self.b_nyse.id, status=SupportedUniverseStatus.HISTORICAL_ONLY),
+            ]
+        )
+        self.session.commit()
+
+        project_supported_universe_state(
+            self.session,
+            selected_listing_ids=[self.a_nyse.id],
+            supported_exchange_codes=["NYSE", "XNAS"],
+            supported_instrument_type_codes=["STOCK"],
+            effective_day=date(2026, 2, 2),
+        )
+        self.session.commit()
+
+        events = self.session.scalars(select(UniverseChangeRecord).order_by(UniverseChangeRecord.id.asc())).all()
+        event_types = [event.event_type for event in events]
+        self.assertIn(UniverseChangeEventType.RESTORED, event_types)
+        self.assertIn(UniverseChangeEventType.EXCLUDED, event_types)
+        self.assertIn(UniverseChangeEventType.DEGRADED, event_types)
+        self.assertGreaterEqual(event_types.count(UniverseChangeEventType.REMOVED), 2)
+        for event in events:
+            self.assertIsNotNone(event.effective_day)
+            self.assertIsNotNone(event.reason)
+            self.assertIsNotNone(event.details)
+            self.assertIsNotNone(event.old_state_evidence)
+            self.assertIsNotNone(event.new_state_evidence)
+            self.assertIsNotNone(event.instrument_id)
+            self.assertIsNotNone(event.exchange_id)
+            self.assertIsNotNone(event.instrument_type_id)
 
     def test_projection_rejects_multiple_selected_listings_for_same_instrument(self) -> None:
         with self.assertRaises(ValueError):

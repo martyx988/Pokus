@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from pokus_backend.discovery.contract import DiscoveryCandidate
 from pokus_backend.discovery.persistence import persist_discovery_candidates
-from pokus_backend.domain import Base, Exchange, IdentifierRecord, InstrumentType, Listing
+from pokus_backend.domain import Base, Exchange, IdentifierRecord, InstrumentType, Listing, UniverseChangeRecord
+from pokus_backend.domain.universe_change_models import UniverseChangeEventType
 
 
 class DiscoveryCandidatePersistenceTests(unittest.TestCase):
@@ -61,9 +63,19 @@ class DiscoveryCandidatePersistenceTests(unittest.TestCase):
             stable_identifiers={"figi": "BBG000B9XRY9", "isin": "US0378331005"},
         )
 
-        persist_discovery_candidates(self.session, [initial], provider_code="openfigi")
+        persist_discovery_candidates(
+            self.session,
+            [initial],
+            provider_code="openfigi",
+            effective_day=date(2026, 1, 10),
+        )
         self.session.commit()
-        persist_discovery_candidates(self.session, [updated], provider_code="openfigi")
+        persist_discovery_candidates(
+            self.session,
+            [updated],
+            provider_code="openfigi",
+            effective_day=date(2026, 1, 11),
+        )
         self.session.commit()
 
         listing_id = self.session.scalar(select(Listing.id))
@@ -79,6 +91,21 @@ class DiscoveryCandidatePersistenceTests(unittest.TestCase):
         self.assertEqual(records[0].provider_code, "OPENFIGI")
         self.assertEqual(records[1].identifier_type, "ISIN")
         self.assertEqual(records[1].identifier_value, "US0378331005")
+
+        events = self.session.scalars(
+            select(UniverseChangeRecord).order_by(UniverseChangeRecord.id.asc())
+        ).all()
+        self.assertEqual(events[0].event_type, UniverseChangeEventType.ADDED)
+        self.assertEqual(events[1].event_type, UniverseChangeEventType.NAME_CHANGED)
+        self.assertEqual(events[2].event_type, UniverseChangeEventType.IDENTIFIER_CHANGED)
+        for event in events:
+            self.assertIsNotNone(event.effective_day)
+            self.assertIsNotNone(event.reason)
+            self.assertIsNotNone(event.instrument_id)
+            self.assertIsNotNone(event.exchange_id)
+            self.assertIsNotNone(event.instrument_type_id)
+            self.assertIsNotNone(event.old_state_evidence if event.event_type != UniverseChangeEventType.ADDED else {})
+            self.assertIsNotNone(event.new_state_evidence)
 
 
 if __name__ == "__main__":
