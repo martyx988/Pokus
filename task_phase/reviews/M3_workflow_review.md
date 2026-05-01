@@ -2,6 +2,9 @@
 
 Verdict: pass
 
+Rerun branch: `task/review-M3-workflow-rerun`
+Rerun date: `2026-05-01`
+
 ## Process Gate Results
 
 ### One task = one subagent branch
