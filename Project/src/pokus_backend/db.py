@@ -9,6 +9,7 @@ import psycopg
 from alembic import command
 from alembic.config import Config
 
+from pokus_backend.domain.reference_baseline import seed_launch_baseline_records
 from pokus_backend.settings import load_settings
 
 
@@ -40,6 +41,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Database utilities for connectivity and migrations.")
     parser.add_argument("--check", action="store_true", help="Check PostgreSQL connectivity and exit.")
     parser.add_argument("--migrate", action="store_true", help="Apply baseline migrations and exit.")
+    parser.add_argument(
+        "--seed-launch-baseline",
+        action="store_true",
+        help="Create or update launch exchange and instrument-type baseline records.",
+    )
     args = parser.parse_args()
     settings = load_settings()
 
@@ -59,6 +65,15 @@ def main() -> int:
             print(f"database-migrate-failed db={settings.database_url} error={exc}", file=sys.stderr)
             return 1
         print(f"database-migrate-ok db={settings.database_url}")
+        return 0
+
+    if args.seed_launch_baseline:
+        try:
+            seed_launch_baseline_records(settings.database_url)
+        except Exception as exc:  # noqa: BLE001
+            print(f"database-seed-launch-baseline-failed db={settings.database_url} error={exc}", file=sys.stderr)
+            return 1
+        print(f"database-seed-launch-baseline-ok db={settings.database_url}")
         return 0
 
     parser.print_help()
