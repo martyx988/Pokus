@@ -7,6 +7,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from pokus_backend.domain.reference_models import Base
 
+load_jobs_table = Table(
+    "load_jobs",
+    Base.metadata,
+    Column("id", BigInteger(), primary_key=True),
+)
+
 
 load_jobs_table = Table(
     "load_jobs",
