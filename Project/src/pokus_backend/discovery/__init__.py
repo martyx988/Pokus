@@ -16,6 +16,10 @@ from pokus_backend.discovery.ranking import (
     ListingSelectionResult,
     select_best_listing,
 )
+from pokus_backend.discovery.supported_universe import (
+    SupportedUniverseProjectionResult,
+    project_supported_universe_state,
+)
 
 __all__ = [
     "DiscoveryAdapter",
@@ -25,8 +29,10 @@ __all__ = [
     "ListingSelectionEvidence",
     "ListingSelectionResult",
     "PersistDiscoveryCandidatesResult",
+    "SupportedUniverseProjectionResult",
     "candidate_from_payload",
     "normalize_discovery_payloads",
     "persist_discovery_candidates",
+    "project_supported_universe_state",
     "select_best_listing",
 ]
