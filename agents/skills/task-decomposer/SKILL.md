@@ -41,24 +41,24 @@ Only use available files.
 
 ---
 
-## Concrete Integration Guardrail
+## Concrete Delivery Guardrail
 
-When milestone scope mentions provider/data-source integration, discovery ingestion, live loading, or validation of real external data quality, task decomposition must include explicit **concrete integration tasks**. Contract-only or fixture-only completion is not sufficient.
+When milestone scope includes real integration, runtime execution, external systems, operational workflows, or production-facing behavior, task decomposition must include explicit **concrete delivery tasks**. Contract-only or fixture-only completion is not sufficient unless the milestone explicitly limits scope to contracts/prototypes.
 
-You must include tasks that explicitly require:
-- choosing and documenting concrete provider(s)/package(s) to use
-- implementing at least one concrete adapter/connector that performs real external calls
-- adding configuration/settings/env wiring for the chosen provider(s)
-- persisting and validating real provider outputs through normal pipeline paths
-- adding at least one non-mock verification path (can be smoke/manual command) proving real provider wiring
+You must include tasks that explicitly require, as applicable:
+- selecting and documenting concrete implementation choices (tools/packages/services)
+- implementing at least one concrete runtime path in production code
+- wiring configuration/settings/environment for the concrete path
+- persisting or handling real outputs through normal workflow paths
+- adding at least one non-mock verification path (integration/smoke/manual command) proving real wiring
 
 Do not allow an entire milestone to be satisfiable through only:
 - protocol/interface definitions
-- fake adapters
+- fake adapters or stubs
 - deterministic fixtures
 - mocked integration tests
 
-If roadmap/spec intent requires real provider behavior, decomposition must force it via explicit acceptance criteria and test requirements in task files.
+If roadmap/spec intent requires real behavior, decomposition must force it via explicit acceptance criteria and test requirements in task files.
 
 ---
 
@@ -198,7 +198,7 @@ Split the task if acceptance criteria mention unrelated behaviors, such as:
 
 Only a final milestone integration gate may validate multiple completed task areas together.
 
-For provider/data-source milestones, at least one task must contain acceptance criteria that prove concrete external integration (not just contract conformance), and the final gate must assert evidence for that integration.
+For milestones requiring real behavior, at least one task must contain acceptance criteria that prove concrete implementation and execution (not just contract conformance), and the final gate must assert evidence for that concrete behavior.
 
 ---
 
