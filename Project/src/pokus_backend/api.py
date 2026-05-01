@@ -12,6 +12,7 @@ import psycopg
 from pokus_backend.admin.scope_config import set_supported_exchanges, set_supported_instrument_types
 from pokus_backend.auth import authorize_path
 from pokus_backend.db import check_database_connection
+from pokus_backend.discovery.app_supported_universe import fetch_app_supported_universe
 from pokus_backend.observability.health import collect_platform_health
 from pokus_backend.observability.logging import log_event
 from pokus_backend.observability.metrics import record_api_error
@@ -79,6 +80,25 @@ class HealthHandler(BaseHTTPRequestHandler):
             payload["role"] = "api"
             payload["environment"] = settings.environment
             self._send_json(status, payload)
+            return
+        if self.path == "/app/supported-universe":
+            items = fetch_app_supported_universe(settings.database_url)
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "supported_universe": [
+                        {
+                            "exchange": item.exchange,
+                            "instrument_type": item.instrument_type,
+                            "symbol": item.symbol,
+                            "canonical_name": item.canonical_name,
+                            "support_status": item.support_status,
+                            "signal_ready": item.signal_ready,
+                        }
+                        for item in items
+                    ]
+                },
+            )
             return
 
         if self.path.startswith("/app/"):
