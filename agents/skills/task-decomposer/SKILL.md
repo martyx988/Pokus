@@ -211,6 +211,13 @@ Do not omit critical context needed for correct implementation.
 
 ---
 
+
+## Task Numbering Rule
+
+- Task IDs are global and monotonically increasing across milestones.
+- Do not restart numbering at `T1` inside a new milestone folder.
+- Determine the highest existing task ID across `task_phase/tasks/` and start the current milestone at next integer.
+- Example: if the latest existing task is `T20`, first task in next milestone must be `T21`.
 # Task Output Format
 
 For each task:
@@ -336,3 +343,4 @@ Before writing task files, review each proposed task and split it further if it 
 - acceptance criteria that test unrelated behaviors
 
 If splitting is possible without breaking dependency order, split.
+
