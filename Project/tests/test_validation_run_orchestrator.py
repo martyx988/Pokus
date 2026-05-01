@@ -43,7 +43,10 @@ class ValidationRunOrchestratorTests(unittest.TestCase):
         self.assertEqual(len(result.reports), 3)
         self.assertEqual(self.session.query(ValidationRun).count(), 1)
         self.assertEqual(self.session.query(ValidationExchangeReport).count(), 3)
-        self.assertEqual(result.reports[0].final_verdict, "pending")
+        verdict_by_exchange = {report.exchange.code: report.final_verdict for report in result.reports}
+        self.assertEqual(verdict_by_exchange["NYSE"], "fail")
+        self.assertEqual(verdict_by_exchange["NASDAQ"], "fail")
+        self.assertEqual(verdict_by_exchange["PSE"], "blocked")
         self.assertEqual(
             sorted(result.reports[0].result_buckets.keys()),
             sorted(

@@ -19,6 +19,13 @@ from pokus_backend.validation.completeness_timeliness_metrics import populate_co
 from pokus_backend.validation.disagreement_benchmark_metrics import populate_disagreement_benchmark_metrics
 from pokus_backend.validation.discovery_listing_metrics import populate_discovery_listing_metrics
 
+_VALIDATION_BUCKET_KEYS = (
+    "discovery_listing",
+    "completeness_timeliness",
+    "disagreement_benchmark",
+    "calendar_validation",
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationRunExecutionResult:
@@ -56,6 +63,7 @@ def orchestrate_launch_exchange_validation_run(
         populate_completeness_timeliness_metrics(session, reports=reports)
         populate_disagreement_benchmark_metrics(session, reports=reports)
         populate_calendar_validation_metrics(session, reports=reports)
+        _finalize_exchange_report_verdicts(reports)
         run.state = ValidationRunState.SUCCEEDED.value
         run.failure_reason = None
     run.finished_at = terminal_time
@@ -145,3 +153,39 @@ def _build_result_bucket_shell() -> dict[str, object]:
         "disagreement_benchmark": {"status": "pending", "findings": []},
         "calendar_validation": {"status": "pending", "findings": []},
     }
+
+
+def _finalize_exchange_report_verdicts(reports: list[ValidationExchangeReport]) -> None:
+    for report in reports:
+        failed_buckets: list[str] = []
+        findings: list[str] = []
+        for bucket_key in _VALIDATION_BUCKET_KEYS:
+            bucket = report.result_buckets.get(bucket_key, {})
+            if bucket.get("status") != "pass":
+                failed_buckets.append(bucket_key)
+                bucket_findings = bucket.get("findings", [])
+                if isinstance(bucket_findings, list):
+                    findings.extend(str(finding) for finding in bucket_findings)
+
+        if not failed_buckets:
+            report.final_verdict = ValidationVerdict.PASS.value
+            report.findings_summary = "All launch-validation buckets passed."
+            continue
+
+        unique_findings = sorted({finding for finding in findings if finding})
+        failed_list = ", ".join(failed_buckets)
+        finding_list = ", ".join(unique_findings) if unique_findings else "no explicit finding codes"
+        if report.exchange.code == "PSE":
+            report.final_verdict = ValidationVerdict.BLOCKED.value
+            report.findings_summary = (
+                "PSE launch validation blocked; PSE must remain in launch scope. "
+                f"Failed buckets: {failed_list}. Findings: {finding_list}. "
+                "Action: iterate on source discovery, provider combination, adapter behavior, or validation strategy."
+            )
+            continue
+
+        report.final_verdict = ValidationVerdict.FAIL.value
+        report.findings_summary = (
+            f"Launch validation failed for {report.exchange.code}. "
+            f"Failed buckets: {failed_list}. Findings: {finding_list}."
+        )
