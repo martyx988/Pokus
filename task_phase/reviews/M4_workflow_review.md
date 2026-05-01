@@ -1,50 +1,65 @@
 Verdict: blocked
 
+Rerun branch: `task/m4-t62-rerun-concrete-gate`
+
+Date: 2026-05-01
+
+## Focused M4 Gate Rerun Executed
+
+- Result: failed (actionable defect)
+- Command:
+  - `$env:PYTHONPATH='src'; python -m unittest tests.test_m4_integration_gate tests.test_app_exchange_readiness_endpoints tests.test_operator_opening_load_table tests.test_opening_read_model_refresh tests.test_opening_load_outcome_classification -v`
+- Outcome summary:
+  - 24 tests passed.
+  - `tests.test_m4_integration_gate.Milestone4IntegrationGateTests.setUpClass` failed with `AttributeError: idempotency_key` while building `load_jobs` dependency table/index in the SQLite gate fixture bootstrap.
+
+## Concrete Runtime Command Rerun Executed
+
+- Result: failed (actionable defect)
+- Command:
+  - `$env:PYTHONPATH='src'; $env:TEST_DATABASE_URL='postgresql://postgres:postgres@localhost:5432/pokus'; python -m unittest tests.test_m4_runtime_trust_loop_gate -v`
+- Outcome summary:
+  - Runtime command path reached migration/seed and worker boundary setup, then failed in launch-baseline seeding.
+  - Failure: `(psycopg.errors.UndefinedColumn) column exchange.activity_priority_rank does not exist` during `python -m pokus_backend.db --seed-launch-baseline`.
+
 ## Process Gate
 
 Result: pass
 
 Checks:
 - one task = one subagent branch: pass
-  - Evidence: M4 task files `T43` through `T54` are each completed and tied to a distinct implementation branch/commit in the task summaries.
+  - Evidence: rerun executed on dedicated branch `task/m4-t62-rerun-concrete-gate`.
 - no direct subagent implementation on `main`: pass
-  - Evidence: the milestone was integrated through task branches rather than by editing implementation directly on `main`.
+  - Evidence: this review update and rerun evidence were produced on task branch, not directly on `main`.
 - each task has traceable commit(s): pass
-  - Evidence: every M4 task file includes a completion summary with concrete source-file references and the milestone review history references distinct commits.
+  - Evidence: M4 task files include branch/commit traces and T62 captures this rerun evidence.
 - canonical task completion format present: pass
-  - Evidence: all M4 task files contain `### Status`, `Done.`, and `### Completion Summary`.
-- merges to `origin/main` complete and coherent: pass
-  - Evidence: the milestone was previously merged and the review/checklist state reflects an integrated M4 line of work.
+  - Evidence: M4 task files include `### Status`, `Done.`, and `### Completion Summary`.
 
 ## Product Gate
 
 Result: blocked
 
 Checks:
-- all milestone task acceptance criteria satisfied: blocked
-  - The task summaries show the expected API, worker, and read-model surfaces, but the evidence is still mostly fixture-driven and helper-level rather than a concrete runtime exercise of the full opening-publication path.
-- milestone-level integration validation present and passing: blocked
-  - The available gate run passes, but it does not satisfy the stricter concrete-evidence bar for runtime behavior:
-    - `Project/tests/test_m4_integration_gate.py` uses a temporary SQLite database, seeds publication rows directly, and starts only an in-process `ThreadingHTTPServer`.
-    - The task summary for `T54` explicitly says the gate used "SQLite-backed isolated fixtures only" and that load rows were seeded directly.
-    - The validation command exercises unit/integration helpers and API handlers in-process, but it does not prove the live worker/API runtime path against the production database/queue boundary.
-- unresolved open questions: blocked
-  - What command or environment evidence shows the actual M4 runtime loop executes against the real configured database/worker boundary, rather than only helper calls and seeded fixtures?
-  - Where is the concrete runtime proof that the worker path from scheduling to load processing to publication refresh is exercised without fixture-only shortcuts?
-- missing required scope from roadmap/spec for M4: blocked
-  - The roadmap requires end-to-end tests for current-day opening-price load through app readiness and current-price retrieval, plus integration evidence for retries, lock expiry, stale abandoned recovery, terminal outcomes, coverage denominator rules, correctness validation, benchmark mismatch threshold, and read-model refresh.
-  - The current evidence proves those behaviors at the helper/fixture level, but not with the concrete runtime implementation evidence required by the stricter guardrail.
+- focused milestone gate is currently passing: blocked
+  - Current rerun did not pass due test bootstrap defect in `tests/test_m4_integration_gate.py` (`load_jobs.idempotency_key` fixture/index mismatch).
+- concrete runtime proof is currently passing end to end: blocked
+  - Runtime gate reached concrete PostgreSQL migration/seed path but failed before end-to-end trust-loop assertions due missing `exchange.activity_priority_rank` column during launch-baseline seeding.
+- concrete evidence requirement status: partially closed, still blocked
+  - Closed: non-fixture concrete runtime command exists and was executed in this rerun.
+  - Open: the command is not yet passing because of runtime schema/seed mismatch.
 
 ## Failed Checks
 
-- Concrete runtime implementation evidence is missing for the Milestone 4 trust loop.
-- The gate evidence is fixture-backed and in-process, not a concrete runtime run of the worker/API publication path.
-- The available validation command proves helper behavior, but not the live runtime path required by the stricter interpretation.
+- M4 focused gate bootstrap fails with `AttributeError: idempotency_key` in test dependency-table setup.
+- M4 concrete runtime trust-loop gate fails on baseline seeding because expected exchange columns are missing in migrated runtime schema.
 
 ## Open Questions
 
-- none that can be resolved from the current evidence set
+- none; blockers are concrete and reproducible from the rerun commands above
 
 ## Final Recommendation
 
-Keep Milestone 4 at `in progress` and add follow-up work that proves the opening-publication path in a concrete runtime setting, including the worker execution boundary and publication/read-model flow without relying on fixture-only seeding.
+Keep Milestone 4 at `in progress` until:
+- the focused M4 integration gate rerun passes cleanly, and
+- the concrete runtime trust-loop gate passes through migration, seeding, worker trust-loop execution, and app/read-model assertions on PostgreSQL.
