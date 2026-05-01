@@ -11,6 +11,7 @@ from pokus_backend.domain.load_tracking_models import ExchangeDayLoad
 from pokus_backend.jobs.opening_load_outcomes import (
     OpeningLoadOutcomeInput,
     classify_opening_load_outcome,
+    compute_publication_terminal_coverage_precheck,
     upsert_opening_load_outcome,
 )
 
@@ -205,6 +206,109 @@ class OpeningLoadOutcomeClassificationTests(unittest.TestCase):
         self.assertEqual(self.exchange_day_load.started_at, datetime(2026, 5, 1, 14, 0))
         self.assertIsNone(self.exchange_day_load.completed_at)
         self.assertIsNone(self.exchange_day_load.duration_seconds)
+
+    def test_publication_precheck_passes_with_100_percent_coverage(self) -> None:
+        result = classify_opening_load_outcome(OpeningLoadOutcomeInput(has_selected_price=True))
+        upsert_opening_load_outcome(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            listing_id=self.listing.id,
+            job_id=None,
+            classification=result,
+            occurred_at=datetime(2026, 5, 1, 14, 0, tzinfo=timezone.utc),
+        )
+        self.session.commit()
+
+        precheck = compute_publication_terminal_coverage_precheck(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+        self.assertEqual(precheck.eligible_count, 1)
+        self.assertEqual(precheck.terminal_outcome_count, 1)
+        self.assertEqual(precheck.covered_count, 1)
+        self.assertEqual(precheck.coverage_percent, 100.0)
+        self.assertTrue(precheck.has_all_terminal_outcomes)
+        self.assertTrue(precheck.has_gt_99_coverage)
+
+    def test_publication_precheck_passes_when_coverage_is_above_99(self) -> None:
+        self._seed_precheck_population(total=200, succeeded=199, failed=1)
+
+        precheck = compute_publication_terminal_coverage_precheck(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+
+        self.assertEqual(precheck.covered_count, 199)
+        self.assertEqual(precheck.coverage_percent, 99.5)
+        self.assertTrue(precheck.has_gt_99_coverage)
+
+    def test_publication_precheck_blocks_when_any_eligible_outcome_is_non_terminal(self) -> None:
+        second_listing = self._create_listing_for_symbol("WAIT1")
+        self.exchange_day_load.eligible_instrument_count = 2
+        self.session.commit()
+
+        terminal = classify_opening_load_outcome(OpeningLoadOutcomeInput(has_selected_price=True))
+        pending = classify_opening_load_outcome(OpeningLoadOutcomeInput(has_selected_price=False, halted=True))
+        upsert_opening_load_outcome(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            listing_id=self.listing.id,
+            job_id=None,
+            classification=terminal,
+            occurred_at=datetime(2026, 5, 1, 14, 0, tzinfo=timezone.utc),
+        )
+        upsert_opening_load_outcome(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            listing_id=second_listing.id,
+            job_id=None,
+            classification=pending,
+            occurred_at=datetime(2026, 5, 1, 14, 1, tzinfo=timezone.utc),
+        )
+        self.session.commit()
+
+        precheck = compute_publication_terminal_coverage_precheck(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+
+        self.assertEqual(precheck.terminal_outcome_count, 1)
+        self.assertFalse(precheck.has_all_terminal_outcomes)
+        self.assertEqual(precheck.coverage_percent, 50.0)
+        self.assertFalse(precheck.has_gt_99_coverage)
+
+    def _seed_precheck_population(self, *, total: int, succeeded: int, failed: int) -> None:
+        self.assertEqual(succeeded + failed, total)
+        self.exchange_day_load.eligible_instrument_count = total
+        self.session.commit()
+
+        listing_ids = [self.listing.id]
+        for index in range(total - 1):
+            listing = self._create_listing_for_symbol(f"T{index:03d}")
+            listing_ids.append(listing.id)
+
+        for index, listing_id in enumerate(listing_ids):
+            is_succeeded = index < succeeded
+            payload = OpeningLoadOutcomeInput(has_selected_price=is_succeeded, stale=not is_succeeded)
+            classification = classify_opening_load_outcome(payload)
+            upsert_opening_load_outcome(
+                self.session,
+                exchange_day_load_id=self.exchange_day_load.id,
+                listing_id=listing_id,
+                job_id=None,
+                classification=classification,
+                occurred_at=datetime(2026, 5, 1, 14, 0, tzinfo=timezone.utc),
+            )
+        self.session.commit()
+
+    def _create_listing_for_symbol(self, symbol: str) -> Listing:
+        instrument = Instrument(instrument_type_id=self.instrument_type.id, canonical_name=f"{symbol} Corp")
+        self.session.add(instrument)
+        self.session.flush()
+        listing = Listing(instrument_id=instrument.id, exchange_id=self.exchange.id, symbol=symbol)
+        self.session.add(listing)
+        self.session.flush()
+        return listing
 
 
 if __name__ == "__main__":

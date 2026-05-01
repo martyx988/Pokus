@@ -28,6 +28,16 @@ class OpeningLoadOutcomeClassification:
     failure_reason: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class PublicationTerminalCoveragePrecheck:
+    eligible_count: int
+    terminal_outcome_count: int
+    covered_count: int
+    coverage_percent: float
+    has_all_terminal_outcomes: bool
+    has_gt_99_coverage: bool
+
+
 def classify_opening_load_outcome(payload: OpeningLoadOutcomeInput) -> OpeningLoadOutcomeClassification:
     if payload.has_selected_price:
         return OpeningLoadOutcomeClassification(
@@ -149,6 +159,81 @@ def refresh_exchange_day_opening_load_aggregate(
 
     session.flush()
     return exchange_day_load
+
+
+def compute_publication_terminal_coverage_precheck(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+) -> PublicationTerminalCoveragePrecheck:
+    exchange_day_load = session.scalar(
+        select(ExchangeDayLoad).where(ExchangeDayLoad.id == exchange_day_load_id)
+    )
+    if exchange_day_load is None:
+        raise ValueError(f"unknown exchange_day_load_id: {exchange_day_load_id}")
+
+    eligible_count = int(exchange_day_load.eligible_instrument_count)
+    terminal_outcome_count = _count_terminal_outcomes_for_exchange_day(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+    )
+    covered_count = _count_succeeded_outcomes_for_exchange_day(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+    )
+    coverage_percent = _calculate_coverage_percent(
+        covered_count=covered_count,
+        eligible_count=eligible_count,
+    )
+    has_all_terminal_outcomes = terminal_outcome_count >= eligible_count
+    has_gt_99_coverage = coverage_percent > 99.0
+
+    return PublicationTerminalCoveragePrecheck(
+        eligible_count=eligible_count,
+        terminal_outcome_count=terminal_outcome_count,
+        covered_count=covered_count,
+        coverage_percent=coverage_percent,
+        has_all_terminal_outcomes=has_all_terminal_outcomes,
+        has_gt_99_coverage=has_gt_99_coverage,
+    )
+
+
+def _count_terminal_outcomes_for_exchange_day(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+) -> int:
+    return int(
+        session.scalar(
+            select(func.count(InstrumentLoadOutcome.id)).where(
+                InstrumentLoadOutcome.exchange_day_load_id == exchange_day_load_id,
+                InstrumentLoadOutcome.is_terminal.is_(True),
+            )
+        )
+        or 0
+    )
+
+
+def _count_succeeded_outcomes_for_exchange_day(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+) -> int:
+    return int(
+        session.scalar(
+            select(func.count(InstrumentLoadOutcome.id)).where(
+                InstrumentLoadOutcome.exchange_day_load_id == exchange_day_load_id,
+                InstrumentLoadOutcome.outcome == "succeeded",
+            )
+        )
+        or 0
+    )
+
+
+def _calculate_coverage_percent(*, covered_count: int, eligible_count: int) -> float:
+    if eligible_count <= 0:
+        return 0.0
+    return (float(covered_count) * 100.0) / float(eligible_count)
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
