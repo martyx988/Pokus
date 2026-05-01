@@ -52,6 +52,12 @@ Note:
 - no unresolved open questions
 - no missing required scope from roadmap/spec for that milestone
 
+For milestones that require provider/data-source integration or real external validation:
+- require evidence of at least one concrete provider/package implementation in production code
+- require evidence that real-provider execution path is wired (configuration + runtime path), not only interfaces/fakes
+- treat contract-only, fixture-only, or mock-only completion as insufficient unless roadmap/spec explicitly limits scope to contracts
+- fail Product Gate if no concrete provider package/connector can be identified from code/dependencies/docs
+
 ---
 
 # Output File (always)
@@ -103,3 +109,10 @@ If any check fails:
 - Do not silently assume missing evidence means success.
 - Do not expand beyond the reviewed milestone.
 - If evidence is missing, mark related check as failed and explain exactly what is missing.
+
+Provider-evidence strictness:
+- If milestone scope implies real external provider behavior, the review must name:
+  - concrete provider/package(s)
+  - concrete adapter module(s) using them
+  - concrete validation evidence (test/command/log path) that exercises non-mock provider integration
+- If any of the above are missing, verdict must be `blocked` and follow-up decomposition is required.

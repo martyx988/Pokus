@@ -41,6 +41,27 @@ Only use available files.
 
 ---
 
+## Concrete Integration Guardrail
+
+When milestone scope mentions provider/data-source integration, discovery ingestion, live loading, or validation of real external data quality, task decomposition must include explicit **concrete integration tasks**. Contract-only or fixture-only completion is not sufficient.
+
+You must include tasks that explicitly require:
+- choosing and documenting concrete provider(s)/package(s) to use
+- implementing at least one concrete adapter/connector that performs real external calls
+- adding configuration/settings/env wiring for the chosen provider(s)
+- persisting and validating real provider outputs through normal pipeline paths
+- adding at least one non-mock verification path (can be smoke/manual command) proving real provider wiring
+
+Do not allow an entire milestone to be satisfiable through only:
+- protocol/interface definitions
+- fake adapters
+- deterministic fixtures
+- mocked integration tests
+
+If roadmap/spec intent requires real provider behavior, decomposition must force it via explicit acceptance criteria and test requirements in task files.
+
+---
+
 # Core Responsibilities
 
 You must:
@@ -176,6 +197,8 @@ Split the task if acceptance criteria mention unrelated behaviors, such as:
 - model constraints plus workflow automation
 
 Only a final milestone integration gate may validate multiple completed task areas together.
+
+For provider/data-source milestones, at least one task must contain acceptance criteria that prove concrete external integration (not just contract conformance), and the final gate must assert evidence for that integration.
 
 ---
 
