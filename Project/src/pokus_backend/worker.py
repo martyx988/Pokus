@@ -6,6 +6,7 @@ import time
 
 import psycopg
 
+from pokus_backend.discovery.exchange_priority import recompute_exchange_activity_priority
 from pokus_backend.db import check_database_connection
 from pokus_backend.observability.health import upsert_runtime_heartbeat
 from pokus_backend.observability.logging import log_event
@@ -37,6 +38,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run worker/scheduler runtime role.")
     parser.add_argument("--check", action="store_true", help="Validate startup dependencies and exit.")
     parser.add_argument("--once", action="store_true", help="Run one worker cycle and exit.")
+    parser.add_argument(
+        "--recompute-exchange-priority",
+        action="store_true",
+        help="Recompute exchange activity priority rankings from trailing expected-trading-day values.",
+    )
     args = parser.parse_args()
     settings = load_settings()
     log_event("worker.starting", environment=settings.environment, poll_seconds=settings.worker_poll_seconds)
@@ -63,6 +69,18 @@ def main() -> int:
     if args.once:
         run_once()
         log_event("worker.stopped", mode="once")
+        return 0
+
+    if args.recompute_exchange_priority:
+        updated_count = recompute_exchange_activity_priority(settings.database_url)
+        print(
+            f"worker-exchange-priority-recompute-ok env={settings.environment} updated_exchanges={updated_count}"
+        )
+        log_event(
+            "worker.exchange_priority.recompute.succeeded",
+            environment=settings.environment,
+            updated_exchanges=updated_count,
+        )
         return 0
 
     while True:

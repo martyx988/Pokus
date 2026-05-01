@@ -20,6 +20,8 @@ class Exchange(Base):
     code: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     is_launch_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    activity_priority_rank: Mapped[int] = mapped_column(Integer, nullable=False, default=9999)
+    activity_priority_score: Mapped[float] = mapped_column(nullable=False, default=0.0)
 
 
 class InstrumentType(Base):
