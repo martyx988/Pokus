@@ -10,6 +10,7 @@ from pokus_backend.domain.instrument_models import (
     SupportedUniverseStatus,
 )
 from pokus_backend.domain.reference_models import Base, Exchange, InstrumentType
+from pokus_backend.domain.signal_models import SignalEvent, SignalStatistic
 from pokus_backend.domain.universe_change_models import UniverseChangeEventType, UniverseChangeRecord
 
 __all__ = [
@@ -23,6 +24,8 @@ __all__ = [
     "InstrumentType",
     "Listing",
     "PriceRecord",
+    "SignalEvent",
+    "SignalStatistic",
     "SupportedUniverseState",
     "SupportedUniverseStatus",
     "UniverseChangeEventType",
