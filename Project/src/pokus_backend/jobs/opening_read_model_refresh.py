@@ -111,3 +111,7 @@ def get_readiness_read_model(*, exchange_day_load_id: int) -> AppReadinessRow | 
 
 def get_current_day_price_read_model(*, exchange_day_load_id: int) -> tuple[AppCurrentDayPriceRow, ...]:
     return _CURRENT_DAY_PRICES_BY_EXCHANGE_DAY_LOAD.get(exchange_day_load_id, ())
+
+
+def list_readiness_read_models() -> tuple[AppReadinessRow, ...]:
+    return tuple(_READINESS_BY_EXCHANGE_DAY_LOAD.values())

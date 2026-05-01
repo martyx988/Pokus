@@ -31,6 +31,7 @@ from pokus_backend.jobs.opening_read_model_refresh import (
     AppReadinessRow,
     get_current_day_price_read_model,
     get_readiness_read_model,
+    list_readiness_read_models,
     refresh_publication_read_models,
 )
 from pokus_backend.jobs.state_transitions import (
@@ -62,6 +63,7 @@ __all__ = [
     "is_terminal_load_job_state",
     "get_current_day_price_read_model",
     "get_readiness_read_model",
+    "list_readiness_read_models",
     "refresh_publication_read_models",
     "OpeningLoadOutcomeClassification",
     "OpeningLoadOutcomeInput",

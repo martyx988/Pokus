@@ -6,12 +6,17 @@ import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import psycopg
 
 from pokus_backend.admin.scope_config import set_supported_exchanges, set_supported_instrument_types
 from pokus_backend.auth import authorize_path
 from pokus_backend.db import check_database_connection
+from pokus_backend.discovery.app_exchange_readiness import (
+    fetch_app_exchange_readiness,
+    fetch_current_app_exchange_readiness,
+)
 from pokus_backend.discovery.app_supported_universe import fetch_app_supported_universe
 from pokus_backend.observability.health import collect_platform_health
 from pokus_backend.observability.logging import log_event
@@ -64,13 +69,16 @@ class HealthHandler(BaseHTTPRequestHandler):
             self._send_json(auth.status, {"error": "unauthorized"})
             return
 
-        if self.path == "/health":
+        parsed = urlparse(self.path)
+        request_path = parsed.path
+
+        if request_path == "/health":
             self._send_json(
                 HTTPStatus.OK,
                 {"role": "api", "status": "ok", "environment": settings.environment},
             )
             return
-        if self.path == "/operator/health":
+        if request_path == "/operator/health":
             payload = collect_platform_health(
                 settings.database_url,
                 worker_stale_after_seconds=max(30.0, settings.worker_poll_seconds * 3),
@@ -81,7 +89,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             payload["environment"] = settings.environment
             self._send_json(status, payload)
             return
-        if self.path == "/app/supported-universe":
+        if request_path == "/app/supported-universe":
             items = fetch_app_supported_universe(settings.database_url)
             self._send_json(
                 HTTPStatus.OK,
@@ -100,14 +108,46 @@ class HealthHandler(BaseHTTPRequestHandler):
                 },
             )
             return
+        if request_path == "/app/exchanges/readiness":
+            exchanges = parse_qs(parsed.query).get("exchange", [])
+            requested_codes: tuple[str, ...] | None = None
+            if exchanges:
+                requested_codes = tuple(
+                    item for token in exchanges for item in token.split(",")
+                )
+            try:
+                rows = fetch_app_exchange_readiness(settings.database_url, exchange_codes=requested_codes)
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._send_json(
+                HTTPStatus.OK,
+                {"exchange_readiness": [self._serialize_readiness_row(row) for row in rows]},
+            )
+            return
+        if request_path.startswith("/app/exchanges/") and request_path.endswith("/readiness/current"):
+            exchange_code = request_path[len("/app/exchanges/") : -len("/readiness/current")]
+            if not exchange_code:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Exchange code is required."})
+                return
+            try:
+                row = fetch_current_app_exchange_readiness(settings.database_url, exchange_code=exchange_code)
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            if row is None:
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "No current-day load state available."})
+                return
+            self._send_json(HTTPStatus.OK, {"exchange_readiness": self._serialize_readiness_row(row)})
+            return
 
-        if self.path.startswith("/app/"):
+        if request_path.startswith("/app/"):
             self._send_json(HTTPStatus.OK, {"boundary": "public_app", "status": "ok"})
             return
-        if self.path.startswith("/operator/"):
+        if request_path.startswith("/operator/"):
             self._send_json(HTTPStatus.OK, {"boundary": "operator", "status": "ok"})
             return
-        if self.path.startswith("/admin/"):
+        if request_path.startswith("/admin/"):
             self._send_json(HTTPStatus.OK, {"boundary": "admin", "status": "ok"})
             return
 
@@ -133,6 +173,15 @@ class HealthHandler(BaseHTTPRequestHandler):
         if not isinstance(payload, dict):
             raise ValueError("Request body must be a JSON object.")
         return payload
+
+    def _serialize_readiness_row(self, row: Any) -> dict[str, Any]:
+        return {
+            "exchange": row.exchange,
+            "trading_date": row.trading_date,
+            "readiness_state": row.readiness_state,
+            "publication_status": row.publication_status,
+            "publication_available": row.publication_available,
+        }
 
     def log_message(self, *_args) -> None:
         return
