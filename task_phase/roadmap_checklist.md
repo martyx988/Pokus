@@ -9,7 +9,7 @@ Allowed statuses:
 
 | Milestone | Status |
 | --- | --- |
-| Milestone 1: Platform Skeleton and Domain Foundation | completed |
+| Milestone 1: Platform Skeleton and Domain Foundation | in progress |
 | Milestone 2: Admin Scope, Calendar, and Universe Discovery Slice | completed |
 | Milestone 3: Provider Validation and Source Prioritization Foundation | completed |
 | Milestone 4: Core Daily Opening Publication Slice | completed |

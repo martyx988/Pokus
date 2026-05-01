@@ -1,12 +1,14 @@
 # M1 Workflow Review
 
-Verdict: pass
+Verdict: blocked
 
 Review date: 2026-05-01
+Rerun branch: `task/review-M1-workflow-rerun`
 
 ## Provenance Evidence
 
-- Canonical task-to-commit and branch/merge mapping (T1-T17) with direct-on-main exception record is embedded below.
+- Canonical task-to-commit and branch/merge mapping (T1-T17) with direct-on-main exception record remains embedded below.
+- Fresh rerun of the milestone integration gate was executed on the review branch.
 
 ## Process Gate
 
@@ -15,7 +17,7 @@ Review date: 2026-05-01
 - `no direct subagent implementation on main`: **waived for M1**
 - `each task has traceable commit(s)`: **passed**
 - `each task file uses canonical completion format`: **passed**
-  - Resolved by T19 normalization; M1 tasks now use canonical completion status blocks.
+  - Resolved by T19 normalization; M1 task files use canonical completion status blocks.
 - `merges to origin/main complete/coherent`: **passed**
   - M1 task commits are present on `origin/main`.
 
@@ -23,24 +25,28 @@ Review date: 2026-05-01
 
 - Milestone scope coverage: **passed**
   - T1-T17 artifacts exist and map to M1 scope.
-- Focused validation/integration evidence: **passed**
-  - Live PostgreSQL integration gate executed on 2026-05-01 and passed.
+- Focused validation/integration evidence: **blocked**
+  - Fresh rerun on 2026-05-01 failed during Alembic migration resolution before the integration gate could complete.
+  - The migration chain references revision `0010_provider_exchange_reliability_score`, but the existing file is `0010_provider_exchange_reliability_score_schema.py`.
 - Open questions: **passed**
-  - none (live DB evidence requirement closed by dated explicit waiver decision).
+  - none; the blocker is concrete and reproducible.
 
 ## Failed Checks
 
-- none
+- `Project/tests/test_m1_integration_gate.py` failed at migration startup when `Project/migrations/versions/0011_instrument_outcome_classification.py` referenced a non-existent Alembic revision ID.
+- The revision mismatch prevents the live PostgreSQL integration gate from passing in the current repo state.
 
 ## Open Questions
 
 - none
 
-## Gap Tasks Added
+## Rerun Evidence
 
-- `task_phase/tasks/M1/T18.md` (provenance ledger + direct-on-main exception record)
-- `task_phase/tasks/M1/T19.md` (status block normalization across M1 task files)
-- `task_phase/tasks/M1/T20.md` (live PostgreSQL integration evidence or explicit waiver path)
+- Command run from `Project/`:
+  - `$env:PYTHONPATH='src'; $env:TEST_DATABASE_URL='postgresql://postgres:postgres@localhost:5432/pokus'; python -m unittest tests.test_m1_integration_gate -v`
+- Result on 2026-05-01: `FAIL`
+- Failure location:
+  - `Project/migrations/versions/0011_instrument_outcome_classification.py` line 10
 
 ## Embedded Evidence: Task-to-Commit Mapping (T1-T17)
 
@@ -70,18 +76,6 @@ Direct-on-main M1 implementation commits recorded as explicit legacy exceptions:
 
 `cf8f12e`, `5a05f95`, `9153778`, `5c5bab5`, `3d83609`, `77b3b6f`, `a03bab1`, `055bace`, `ab60240`, `10f00b4`, `531af22`, `46e7608`, `182b768`, `c5beede`, `b37a27e`, `78e4bc1`
 
-## Embedded Evidence: T20 Validation
-
-- Validation command (from `Project/`):  
-  `$env:PYTHONPATH='src'; $env:TEST_DATABASE_URL='postgresql://postgres:postgres@localhost:5432/pokus'; python -m unittest tests.test_m1_integration_gate -v`
-- Result on 2026-05-01: `OK`
-- Live PostgreSQL gate executed with Docker PostgreSQL runtime.
-
-## Gap Status
-
-1. Live PostgreSQL integration-gate execution evidence: resolved via live execution (embedded above).
-2. Task completion-status formatting consistency: resolved via T19 status normalization.
-
 ## Final Recommendation
 
-Mark M1 `completed`. Process and product gates are satisfied (with explicit legacy process-policy waiver for branch policy and live PostgreSQL integration evidence captured).
+Keep M1 `in progress` until the Alembic revision chain is repaired and the live PostgreSQL integration gate passes again.
