@@ -18,6 +18,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Alembic defaults version_num to VARCHAR(32), but later revision IDs exceed 32 chars.
+    op.alter_column("alembic_version", "version_num", type_=sa.String(length=64), existing_type=sa.String(length=32))
+
     op.add_column(
         "provider_attempt",
         sa.Column(
@@ -40,3 +43,4 @@ def downgrade() -> None:
     op.drop_constraint("ck_provider_attempt_attempt_key_nonempty", "provider_attempt", type_="check")
     op.drop_constraint("uq_provider_attempt_attempt_key", "provider_attempt", type_="unique")
     op.drop_column("provider_attempt", "attempt_key")
+    op.alter_column("alembic_version", "version_num", type_=sa.String(length=32), existing_type=sa.String(length=64))

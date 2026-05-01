@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from pokus_backend.discovery.exchange_priority import recompute_exchange_activity_priority
-from pokus_backend.db import check_database_connection
+from pokus_backend.db import check_database_connection, to_sqlalchemy_url
 from pokus_backend.jobs.opening_load_scheduler import schedule_today_opening_load_jobs
 from pokus_backend.validation.run_orchestrator import orchestrate_launch_exchange_validation_run
 from pokus_backend.observability.health import upsert_runtime_heartbeat
@@ -36,7 +36,7 @@ def run_once() -> None:
         log_event("worker.heartbeat.failed", environment=settings.environment)
     else:
         log_event("worker.heartbeat.updated", environment=settings.environment)
-    engine = create_engine(settings.database_url)
+    engine = create_engine(to_sqlalchemy_url(settings.database_url))
     try:
         with Session(engine) as session:
             schedule_result = schedule_today_opening_load_jobs(session)
@@ -123,7 +123,7 @@ def main() -> int:
 
     if args.run_launch_validation:
         target_exchanges = [value.strip() for value in args.validation_exchanges.split(",")]
-        engine = create_engine(settings.database_url)
+        engine = create_engine(to_sqlalchemy_url(settings.database_url))
         try:
             with Session(engine) as session:
                 run_result = orchestrate_launch_exchange_validation_run(

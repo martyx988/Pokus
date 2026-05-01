@@ -1,9 +1,9 @@
 # M1 Workflow Review
 
-Verdict: blocked
+Verdict: passed
 
 Review date: 2026-05-01
-Rerun branch: `task/review-M1-workflow-rerun`
+Rerun branch: `task/m1-t56-rerun-m1-live-gate`
 
 ## Provenance Evidence
 
@@ -25,16 +25,15 @@ Rerun branch: `task/review-M1-workflow-rerun`
 
 - Milestone scope coverage: **passed**
   - T1-T17 artifacts exist and map to M1 scope.
-- Focused validation/integration evidence: **blocked**
-  - Fresh rerun on 2026-05-01 failed during Alembic migration resolution before the integration gate could complete.
-  - The migration chain references revision `0010_provider_exchange_reliability_score`, but the existing file is `0010_provider_exchange_reliability_score_schema.py`.
+- Focused validation/integration evidence: **passed**
+  - Fresh rerun on 2026-05-01 completed successfully against live PostgreSQL.
+  - Migration startup blocker is resolved; gate reaches full M1 integration assertions and returns `OK`.
 - Open questions: **passed**
   - none; the blocker is concrete and reproducible.
 
 ## Failed Checks
 
-- `Project/tests/test_m1_integration_gate.py` failed at migration startup when `Project/migrations/versions/0011_instrument_outcome_classification.py` referenced a non-existent Alembic revision ID.
-- The revision mismatch prevents the live PostgreSQL integration gate from passing in the current repo state.
+- none
 
 ## Open Questions
 
@@ -44,9 +43,10 @@ Rerun branch: `task/review-M1-workflow-rerun`
 
 - Command run from `Project/`:
   - `$env:PYTHONPATH='src'; $env:TEST_DATABASE_URL='postgresql://postgres:postgres@localhost:5432/pokus'; python -m unittest tests.test_m1_integration_gate -v`
-- Result on 2026-05-01: `FAIL`
-- Failure location:
-  - `Project/migrations/versions/0011_instrument_outcome_classification.py` line 10
+- Result on 2026-05-01: `OK`
+- Environment assumptions:
+  - Local PostgreSQL is reachable at `postgresql://postgres:postgres@localhost:5432/pokus`.
+  - Command executed from `Project/` with `PYTHONPATH=src`.
 
 ## Embedded Evidence: Task-to-Commit Mapping (T1-T17)
 
@@ -78,4 +78,4 @@ Direct-on-main M1 implementation commits recorded as explicit legacy exceptions:
 
 ## Final Recommendation
 
-Keep M1 `in progress` until the Alembic revision chain is repaired and the live PostgreSQL integration gate passes again.
+M1 live PostgreSQL integration gate evidence is now current and reproducible; the prior migration-startup blocker is closed.

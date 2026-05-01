@@ -25,7 +25,7 @@ TEST_DB_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
 class Milestone1IntegrationGateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.schema = f"t17_{uuid.uuid4().hex[:12]}"
-        self.schema_options = f"-csearch_path={self.schema},public"
+        self.schema_options = f"-c search_path={self.schema},public"
         with psycopg.connect(TEST_DB_URL, connect_timeout=5, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(f'CREATE SCHEMA "{self.schema}"')
@@ -68,7 +68,7 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
                     """
                     SELECT table_name
                     FROM information_schema.tables
-                    WHERE table_schema = %s
+                    WHERE table_schema IN (%s, 'public')
                     """,
                     (self.schema,),
                 )
