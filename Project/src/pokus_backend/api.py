@@ -12,6 +12,8 @@ import psycopg
 from pokus_backend.auth import authorize_path
 from pokus_backend.db import check_database_connection
 from pokus_backend.observability.health import collect_platform_health
+from pokus_backend.observability.logging import log_event
+from pokus_backend.observability.metrics import record_api_error
 from pokus_backend.settings import load_settings
 
 
@@ -20,6 +22,8 @@ class HealthHandler(BaseHTTPRequestHandler):
         settings = load_settings()
         auth = authorize_path(self.path, self.headers, settings)
         if not auth.allowed:
+            record_api_error(auth.status)
+            log_event("api.request.unauthorized", path=self.path, status=auth.status)
             self._send_json(auth.status, {"error": "unauthorized"})
             return
 
@@ -52,6 +56,8 @@ class HealthHandler(BaseHTTPRequestHandler):
             return
 
         self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
+        record_api_error(HTTPStatus.NOT_FOUND.value)
+        log_event("api.request.not_found", path=self.path, status=HTTPStatus.NOT_FOUND.value)
 
     def _send_json(self, status: HTTPStatus, body: dict[str, Any]) -> None:
         encoded = json.dumps(body).encode("utf-8")
@@ -71,26 +77,37 @@ def main() -> int:
     args = parser.parse_args()
 
     settings = load_settings()
+    log_event("api.starting", environment=settings.environment, host=settings.api_host, port=settings.api_port)
     if args.check:
         try:
             check_database_connection(settings.database_url)
         except psycopg.OperationalError as exc:
+            log_event(
+                "api.check.failed",
+                environment=settings.environment,
+                database_url=settings.database_url,
+                error=str(exc),
+            )
             print(
                 f"api-check-failed env={settings.environment} db={settings.database_url} error={exc}",
                 file=sys.stderr,
             )
             return 1
+        log_event("api.check.succeeded", environment=settings.environment, database_url=settings.database_url)
         print(f"api-check-ok env={settings.environment} db={settings.database_url}")
         return 0
 
     server = ThreadingHTTPServer((settings.api_host, settings.api_port), HealthHandler)
+    log_event("api.started", environment=settings.environment, host=settings.api_host, port=settings.api_port)
     print(f"api-running host={settings.api_host} port={settings.api_port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
+        log_event("api.stopping", reason="keyboard_interrupt")
         return 0
     finally:
         server.server_close()
+        log_event("api.stopped")
     return 0
 
 

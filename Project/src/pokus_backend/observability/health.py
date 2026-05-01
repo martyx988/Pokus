@@ -7,6 +7,16 @@ from typing import Any
 
 import psycopg
 
+from pokus_backend.observability.logging import log_event
+from pokus_backend.observability.metrics import (
+    record_api_health,
+    record_database_connectivity,
+    record_pending_job_age,
+    record_queue_depth,
+    record_scheduler_heartbeat,
+    record_worker_heartbeat,
+)
+
 
 class CheckStatus(StrEnum):
     OK = "ok"
@@ -69,6 +79,10 @@ def collect_platform_health(
                 heartbeats = _read_heartbeats(cur)
                 queue = _read_queue_state(cur, now)
     except psycopg.Error:
+        record_api_health(False)
+        record_database_connectivity(False)
+        record_queue_depth(0)
+        log_event("health.check.failed", check="database", status=CheckStatus.ERROR.value)
         response["status"] = CheckStatus.ERROR.value
         response["checks"]["database"] = {"status": CheckStatus.ERROR.value}
         response["checks"]["queue"] = {
@@ -133,6 +147,20 @@ def evaluate_platform_health(
     degraded_states = {CheckStatus.ERROR, CheckStatus.STALE, CheckStatus.MISSING}
     if worker_state.status in degraded_states or scheduler_state.status in degraded_states or queue_status == CheckStatus.STALE:
         response["status"] = CheckStatus.ERROR.value
+    record_api_health(response["status"] == CheckStatus.OK.value)
+    record_database_connectivity(True)
+    record_worker_heartbeat(worker_state.status == CheckStatus.OK)
+    record_scheduler_heartbeat(scheduler_state.status == CheckStatus.OK)
+    record_queue_depth(queue_depth)
+    record_pending_job_age(oldest_pending_age_seconds)
+    if response["status"] != CheckStatus.OK.value:
+        log_event(
+            "health.check.failed",
+            check="platform",
+            worker_status=response["checks"]["worker_heartbeat"]["status"],
+            scheduler_status=response["checks"]["scheduler_heartbeat"]["status"],
+            queue_status=queue_status.value,
+        )
     return response
 
 

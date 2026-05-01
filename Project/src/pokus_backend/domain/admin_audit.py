@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Mapping
 
+from pokus_backend.observability.logging import log_admin_command_event
+
 
 class AdminCommandType(StrEnum):
     CONFIGURATION_CHANGE = "configuration_change"
@@ -56,6 +58,17 @@ class AdminCommand:
     def __post_init__(self) -> None:
         if self.command_type in MUTATING_ADMIN_COMMAND_TYPES and not self.reason:
             raise ValueError("Mutating admin commands require a non-empty reason.")
+        log_admin_command_event(
+            "admin.command.recorded",
+            command_type=self.command_type.value,
+            actor_id=self.actor_id,
+            actor_type=self.actor_type,
+            admin_command_id=self.id,
+            reason=self.reason,
+            target_type=self.target_type,
+            target_id=self.target_id,
+            request_id=self.request_id,
+        )
 
 
 @dataclass(slots=True)
