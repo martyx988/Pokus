@@ -14,13 +14,6 @@ load_jobs_table = Table(
 )
 
 
-load_jobs_table = Table(
-    "load_jobs",
-    Base.metadata,
-    Column("id", BigInteger(), primary_key=True),
-)
-
-
 class ExchangeDayLoad(Base):
     __tablename__ = "exchange_day_load"
     __table_args__ = (

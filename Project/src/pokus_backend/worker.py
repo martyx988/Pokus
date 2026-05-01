@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from datetime import datetime
 
 import psycopg
 from sqlalchemy import create_engine
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from pokus_backend.discovery.exchange_priority import recompute_exchange_activity_priority
 from pokus_backend.db import check_database_connection, to_sqlalchemy_url
 from pokus_backend.jobs.opening_load_scheduler import schedule_today_opening_load_jobs
+from pokus_backend.jobs.opening_runtime_trust_loop import execute_opening_runtime_trust_loop
 from pokus_backend.validation.run_orchestrator import orchestrate_launch_exchange_validation_run
 from pokus_backend.observability.health import upsert_runtime_heartbeat
 from pokus_backend.observability.logging import log_event
@@ -65,6 +67,21 @@ def main() -> int:
         "--run-launch-validation",
         action="store_true",
         help="Start a launch exchange validation run and persist report shell records.",
+    )
+    parser.add_argument(
+        "--run-opening-trust-loop",
+        action="store_true",
+        help="Execute opening-load trust-loop runtime path and persist publication/read-model updates.",
+    )
+    parser.add_argument(
+        "--trust-loop-date",
+        default=None,
+        help="Optional ISO date (YYYY-MM-DD) for trust-loop execution; defaults to current UTC date.",
+    )
+    parser.add_argument(
+        "--trust-loop-exchanges",
+        default="NYSE,NASDAQ,PSE",
+        help="Comma-separated exchange codes scoped by trust-loop execution.",
     )
     parser.add_argument(
         "--validation-exchanges",
@@ -146,6 +163,38 @@ def main() -> int:
             run_key=run_result.run.run_key,
             run_state=run_result.run.state,
             exchange_count=len(run_result.reports),
+        )
+        return 0
+
+    if args.run_opening_trust_loop:
+        target_exchanges = [value.strip() for value in args.trust_loop_exchanges.split(",")]
+        trust_loop_date = None if args.trust_loop_date is None else datetime.strptime(args.trust_loop_date, "%Y-%m-%d").date()
+        engine = create_engine(to_sqlalchemy_url(settings.database_url))
+        try:
+            with Session(engine) as session:
+                result = execute_opening_runtime_trust_loop(
+                    session,
+                    trading_date=trust_loop_date,
+                    exchange_codes=target_exchanges,
+                )
+                session.commit()
+        finally:
+            engine.dispose()
+        print(
+            "worker-opening-trust-loop-ok "
+            f"env={settings.environment} trading_date={result.trading_date.isoformat()} "
+            f"processed={result.processed_load_count} ready={result.ready_count} blocked={result.blocked_count} "
+            f"failed={result.failed_count} market_closed={result.market_closed_count}"
+        )
+        log_event(
+            "worker.opening_trust_loop.completed",
+            environment=settings.environment,
+            trading_date=result.trading_date.isoformat(),
+            processed=result.processed_load_count,
+            ready=result.ready_count,
+            blocked=result.blocked_count,
+            failed=result.failed_count,
+            market_closed=result.market_closed_count,
         )
         return 0
 

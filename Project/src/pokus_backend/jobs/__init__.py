@@ -26,6 +26,10 @@ from pokus_backend.jobs.opening_load_worker import (
     OpeningLoadSourcePolicy,
     execute_opening_load_for_instrument_day,
 )
+from pokus_backend.jobs.opening_runtime_trust_loop import (
+    OpeningRuntimeTrustLoopResult,
+    execute_opening_runtime_trust_loop,
+)
 from pokus_backend.jobs.opening_read_model_refresh import (
     AppCurrentDayPriceRow,
     AppReadinessRow,
@@ -50,6 +54,7 @@ __all__ = [
     "OpeningPublicationDecisionResult",
     "OpeningLoadScheduleResult",
     "OpeningLoadSourcePolicy",
+    "OpeningRuntimeTrustLoopResult",
     "AppCurrentDayPriceRow",
     "AppReadinessRow",
     "PublicationTerminalCoveragePrecheck",
@@ -60,6 +65,7 @@ __all__ = [
     "compute_publication_terminal_coverage_precheck",
     "decide_and_persist_opening_publication_status",
     "execute_opening_load_for_instrument_day",
+    "execute_opening_runtime_trust_loop",
     "is_terminal_load_job_state",
     "get_current_day_price_read_model",
     "get_readiness_read_model",

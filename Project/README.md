@@ -70,6 +70,14 @@ $env:PYTHONPATH = "src"
 python -m pokus_backend.worker --once
 ```
 
+Run concrete M4 runtime trust loop (scheduler -> outcome aggregation -> publication/read-model refresh):
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+python -m pokus_backend.worker --run-opening-trust-loop --trust-loop-date 2026-05-01 --trust-loop-exchanges NYSE
+```
+
 ## Database checks and migrations
 
 ```powershell
