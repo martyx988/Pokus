@@ -28,9 +28,3 @@ Use their `SKILL.md` files as the source of truth.
 - `project/`: Project source code and its internal folder structure.
 
 ---
-
-## Rules
-
-- always commit and merge to Github remote main after you finish
-
----
