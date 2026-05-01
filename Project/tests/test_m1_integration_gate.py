@@ -7,6 +7,7 @@ import unittest
 import uuid
 from datetime import UTC, date, datetime
 from pathlib import Path
+from urllib.parse import quote
 
 import psycopg
 
@@ -25,7 +26,8 @@ TEST_DB_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
 class Milestone1IntegrationGateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.schema = f"t17_{uuid.uuid4().hex[:12]}"
-        self.schema_options = f"-c search_path={self.schema},public"
+        self.schema_options = f"-c search_path={self.schema}"
+        self.schema_database_url = f"{TEST_DB_URL}?options={quote(self.schema_options, safe='')}"
         with psycopg.connect(TEST_DB_URL, connect_timeout=5, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(f'CREATE SCHEMA "{self.schema}"')
@@ -38,7 +40,7 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
     def _run_module(self, module: str, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["PYTHONPATH"] = str(ROOT / "src")
-        env["DATABASE_URL"] = TEST_DB_URL or ""
+        env["DATABASE_URL"] = self.schema_database_url
         env["PGOPTIONS"] = self.schema_options
         return subprocess.run(
             [sys.executable, "-m", module, *args],
@@ -91,7 +93,7 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
                     VALUES (%s, %s)
                     RETURNING id
                     """,
-                    ("m1-gate-job", LoadJobState.QUEUED.value),
+                    (f"m1-gate-job-{uuid.uuid4().hex[:8]}", LoadJobState.QUEUED.value),
                 )
                 job_id = cur.fetchone()[0]
                 self.assertEqual(

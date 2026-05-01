@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, String, Table, UniqueConstraint
+import sqlalchemy as sa
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pokus_backend.domain.reference_models import Base
@@ -11,6 +12,30 @@ load_jobs_table = Table(
     "load_jobs",
     Base.metadata,
     Column("id", BigInteger(), primary_key=True),
+    Column("idempotency_key", Text(), nullable=True),
+    Column("state", Text(), nullable=True),
+    Column("attempt_count", Integer(), nullable=False, server_default=sa.text("0")),
+    Column("max_attempts", Integer(), nullable=False, server_default=sa.text("3")),
+    Column("request_timeout_seconds", Integer(), nullable=False, server_default=sa.text("30")),
+    Column("next_retry_at", DateTime(timezone=True), nullable=True),
+    Column("lock_token", Text(), nullable=True),
+    Column("lock_acquired_at", DateTime(timezone=True), nullable=True),
+    Column("lock_expires_at", DateTime(timezone=True), nullable=True),
+    Column("heartbeat_at", DateTime(timezone=True), nullable=True),
+    Column("stale_abandoned_at", DateTime(timezone=True), nullable=True),
+    Column("last_error", Text(), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+    Column("updated_at", DateTime(timezone=True), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+    CheckConstraint(
+        "state IN ('queued','running','retry_wait','succeeded','failed','cancelled','stale_abandoned')",
+        name="ck_load_jobs_state",
+    ),
+    CheckConstraint("attempt_count >= 0", name="ck_load_jobs_attempt_count_nonnegative"),
+    CheckConstraint("max_attempts >= 0", name="ck_load_jobs_max_attempts_nonnegative"),
+    CheckConstraint(
+        "request_timeout_seconds > 0",
+        name="ck_load_jobs_request_timeout_positive",
+    ),
 )
 
 

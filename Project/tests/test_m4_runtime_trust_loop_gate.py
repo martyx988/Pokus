@@ -12,6 +12,7 @@ from decimal import Decimal
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -24,6 +25,7 @@ from pokus_backend.domain import Instrument, Listing, PriceRecord, SupportedUniv
 from pokus_backend.domain.load_tracking_models import ExchangeDayLoad, InstrumentLoadOutcome
 from pokus_backend.domain.publication_models import PublicationRecord
 from pokus_backend.domain.reference_models import Exchange, InstrumentType
+from pokus_backend.jobs import opening_read_model_refresh as read_model_cache
 from pokus_backend.settings import Settings
 
 
@@ -36,7 +38,9 @@ TRADING_DATE = date(2026, 5, 1)
 class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.schema = f"t61_{uuid.uuid4().hex[:12]}"
-        self.schema_options = f"-c search_path={self.schema},public"
+        self.schema_options = f"-c search_path={self.schema}"
+        self.schema_database_url = f"{TEST_DB_URL}?options={quote(self.schema_options, safe='')}"
+        self._symbol = f"TR{uuid.uuid4().hex[:6].upper()}"
         self._original_pgoptions = os.environ.get("PGOPTIONS")
         os.environ["PGOPTIONS"] = self.schema_options
         import psycopg
@@ -46,7 +50,9 @@ class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
                 cur.execute(f'CREATE SCHEMA "{self.schema}"')
         self._run_module("pokus_backend.db", "--migrate")
         self._run_module("pokus_backend.db", "--seed-launch-baseline")
-        self.engine = create_engine(to_sqlalchemy_url(TEST_DB_URL or ""))
+        self.engine = create_engine(to_sqlalchemy_url(self.schema_database_url))
+        read_model_cache._READINESS_BY_EXCHANGE_DAY_LOAD.clear()
+        read_model_cache._CURRENT_DAY_PRICES_BY_EXCHANGE_DAY_LOAD.clear()
 
     def tearDown(self) -> None:
         self.engine.dispose()
@@ -63,7 +69,7 @@ class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
     def _run_module(self, module: str, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["PYTHONPATH"] = str(ROOT / "src")
-        env["DATABASE_URL"] = TEST_DB_URL or ""
+        env["DATABASE_URL"] = self.schema_database_url
         env["PGOPTIONS"] = self.schema_options
         completed = subprocess.run(
             [sys.executable, "-m", module, *args],
@@ -96,7 +102,7 @@ class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
             instrument = Instrument(instrument_type_id=stock.id, canonical_name="Trust Loop Corp")
             session.add(instrument)
             session.flush()
-            listing = Listing(instrument_id=instrument.id, exchange_id=nyse.id, symbol="TRST")
+            listing = Listing(instrument_id=instrument.id, exchange_id=nyse.id, symbol=self._symbol)
             session.add(listing)
             session.flush()
             listing_id = listing.id
@@ -130,8 +136,11 @@ class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
         self.assertIsNotNone(listing_id)
 
         with Session(self.engine) as session:
+            nyse = session.scalar(select(Exchange).where(Exchange.code == "NYSE"))
+            self.assertIsNotNone(nyse)
             load = session.scalar(
                 select(ExchangeDayLoad).where(
+                    ExchangeDayLoad.exchange_id == nyse.id,
                     ExchangeDayLoad.trading_date == TRADING_DATE,
                     ExchangeDayLoad.load_type == "daily_open",
                 )
@@ -160,7 +169,7 @@ class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
 
         settings = Settings(
             environment="test",
-            database_url=TEST_DB_URL or "",
+            database_url=self.schema_database_url,
             api_host="127.0.0.1",
             api_port=0,
             worker_poll_seconds=1.0,
@@ -193,7 +202,7 @@ class Milestone4RuntimeTrustLoopGateTests(unittest.TestCase):
             self.assertEqual(status, HTTPStatus.OK, msg=body)
             prices = json.loads(body)["exchange_current_day_prices"]["current_day_prices"]
             self.assertEqual(len(prices), 1)
-            self.assertEqual(prices[0]["symbol"], "TRST")
+            self.assertEqual(prices[0]["symbol"], self._symbol)
         finally:
             server.shutdown()
             server.server_close()

@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from pokus_backend.calendars.service import (
@@ -37,6 +38,9 @@ _exchange_day_load_table = sa.table(
     sa.column("trading_date", sa.Date),
     sa.column("load_type", sa.String),
     sa.column("status", sa.String),
+    sa.column("eligible_instrument_count", sa.Integer),
+    sa.column("succeeded_count", sa.Integer),
+    sa.column("failed_count", sa.Integer),
 )
 
 
@@ -129,8 +133,26 @@ def schedule_today_opening_load_jobs(
                         trading_date=trading_date,
                         load_type=DAILY_OPEN_LOAD_TYPE,
                         status="not_started",
+                        eligible_instrument_count=0,
+                        succeeded_count=0,
+                        failed_count=0,
                     )
                 )
+        except OperationalError:
+            try:
+                with session.begin_nested():
+                    session.execute(
+                        sa.insert(_exchange_day_load_table).values(
+                            exchange_id=exchange_id,
+                            job_id=job_id,
+                            trading_date=trading_date,
+                            load_type=DAILY_OPEN_LOAD_TYPE,
+                            status="not_started",
+                        )
+                    )
+            except IntegrityError:
+                skipped_existing_count += 1
+                continue
         except IntegrityError:
             skipped_existing_count += 1
             continue
