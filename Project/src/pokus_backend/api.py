@@ -5,6 +5,7 @@ import json
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from datetime import date
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -18,6 +19,7 @@ from pokus_backend.discovery.app_exchange_readiness import (
     fetch_app_exchange_readiness,
     fetch_current_app_exchange_readiness,
 )
+from pokus_backend.discovery.operator_opening_load_table import fetch_operator_today_opening_load_table
 from pokus_backend.discovery.app_supported_universe import fetch_app_supported_universe
 from pokus_backend.observability.health import collect_platform_health
 from pokus_backend.observability.logging import log_event
@@ -156,6 +158,25 @@ class HealthHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(HTTPStatus.OK, {"exchange_current_day_prices": self._serialize_current_day_price_row(row)})
             return
+        if request_path == "/operator/loads/today-opening":
+            try:
+                trading_date = self._parse_requested_day(parsed.query)
+                rows = fetch_operator_today_opening_load_table(
+                    settings.database_url,
+                    trading_date=trading_date,
+                )
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "operator_today_opening_load_table": [
+                        self._serialize_operator_today_opening_row(row) for row in rows
+                    ]
+                },
+            )
+            return
 
         if request_path.startswith("/app/"):
             self._send_json(HTTPStatus.OK, {"boundary": "public_app", "status": "ok"})
@@ -213,6 +234,33 @@ class HealthHandler(BaseHTTPRequestHandler):
                 for price in row.current_day_prices
             ],
         }
+
+    def _serialize_operator_today_opening_row(self, row: Any) -> dict[str, Any]:
+        return {
+            "exchange": row.exchange,
+            "trading_date": row.trading_date.isoformat(),
+            "status": row.status,
+            "publication_status": row.publication_status,
+            "publication_available": row.publication_available,
+            "start_time": row.start_time.isoformat() if row.start_time is not None else None,
+            "finish_time": row.finish_time.isoformat() if row.finish_time is not None else None,
+            "eligible_count": row.eligible_count,
+            "success_count": row.success_count,
+            "failure_count": row.failure_count,
+            "coverage_percent": row.coverage_percent,
+            "quality_result": row.quality_result,
+            "degraded": row.degraded,
+            "exception_count": row.exception_count,
+        }
+
+    def _parse_requested_day(self, query: str) -> date | None:
+        requested_day = parse_qs(query).get("day", [])
+        if not requested_day:
+            return None
+        value = requested_day[-1].strip()
+        if not value:
+            return None
+        return date.fromisoformat(value)
 
     def log_message(self, *_args) -> None:
         return
