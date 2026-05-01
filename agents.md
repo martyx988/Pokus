@@ -20,6 +20,17 @@ Use their `SKILL.md` files as the source of truth.
 
 ---
 
+## Orchestration Workflow
+
+- One subagent = one task = one branch (`task/<milestone>-<task-id>-<short-name>`). Never commit directly to `main`.
+- Spawn subagents with clean context (no parent/main-agent context). Prompt only task implementation using `software-developer` skill.
+- Subagent output must include: task id, branch name, commit SHA, changed files, tests run/results, and task `.md` status update.
+- Orchestrator integrates only from subagent commit/branch into `main`, then pushes `origin/main` immediately.
+- Keep workspace clean during orchestration: avoid committing runtime artifacts; rely on `.gitignore` for caches.
+- Use unique migration revisions per task to avoid parallel migration-id collisions.
+
+---
+
 ## Intended File Structure
 
 - `agents/`: Local skills, agent definitions, and hooks.
