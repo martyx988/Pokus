@@ -30,6 +30,7 @@ Use their `SKILL.md` files as the source of truth.
 - Orchestrator integrates only from subagent commit/branch into `main`, then pushes `origin/main` immediately.
 - Keep workspace clean during orchestration: avoid committing runtime artifacts; rely on `.gitignore` for caches.
 - Use unique migration revisions per task to avoid parallel migration-id collisions.
+- For work done directly in main agent/chat (non-subagent), always commit changes and push to `origin/main` at end of the task.
 
 ---
 
