@@ -1,6 +1,6 @@
 """Exchange and instrument type reference schema.
 
-Revision ID: 0002_exchange_instrument_type_schema
+Revision ID: 0002_exchange_instrument_type
 Revises: 0001_baseline
 Create Date: 2026-05-01
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0002_exchange_instrument_type_schema"
+revision = "0002_exchange_instrument_type"
 down_revision = "0001_baseline"
 branch_labels = None
 depends_on = None

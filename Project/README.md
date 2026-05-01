@@ -8,6 +8,7 @@ This folder contains the initial backend skeleton for a modular monolith with se
 ## Local prerequisites
 
 - Python 3.11+
+- Docker Desktop (for local PostgreSQL runtime)
 
 ## Shared environment variables
 
@@ -21,6 +22,21 @@ This folder contains the initial backend skeleton for a modular monolith with se
 - `ADMIN_SESSION_TOKEN` (default: `dev-admin-token`)
 
 Copy `.env.example` to your local environment before running checks.
+
+## Start local PostgreSQL (Docker)
+
+```powershell
+cd Project
+docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml ps
+```
+
+Stop it:
+
+```powershell
+cd Project
+docker compose -f docker-compose.dev.yml down
+```
 
 ## Start API role
 

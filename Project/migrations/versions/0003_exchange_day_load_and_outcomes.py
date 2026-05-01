@@ -1,7 +1,7 @@
 """Add exchange-day load aggregate and instrument outcome tables.
 
-Revision ID: 0003_exchange_day_load_and_outcomes
-Revises: 0002_exchange_instrument_type_schema, 0002_load_jobs
+Revision ID: 0003_exchange_day_load_outcomes
+Revises: 0002_exchange_instrument_type, 0002_load_jobs
 Create Date: 2026-05-01
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0003_exchange_day_load_and_outcomes"
-down_revision = ("0002_exchange_instrument_type_schema", "0002_load_jobs")
+revision = "0003_exchange_day_load_outcomes"
+down_revision = ("0002_exchange_instrument_type", "0002_load_jobs")
 branch_labels = None
 depends_on = None
 

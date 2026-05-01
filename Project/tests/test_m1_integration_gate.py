@@ -7,7 +7,6 @@ import unittest
 import uuid
 from datetime import UTC, date, datetime
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import psycopg
 
@@ -22,19 +21,11 @@ from pokus_backend.observability.logging import log_admin_command_event, log_job
 ROOT = Path(__file__).resolve().parents[1]
 TEST_DB_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
 
-
-def _url_with_options(database_url: str, options: str) -> str:
-    parts = urlsplit(database_url)
-    query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    query["options"] = options
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
-
-
 @unittest.skipUnless(TEST_DB_URL, "Set TEST_DATABASE_URL or DATABASE_URL for T17 integration gate tests.")
 class Milestone1IntegrationGateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.schema = f"t17_{uuid.uuid4().hex[:12]}"
-        self.schema_db_url = _url_with_options(TEST_DB_URL or "", f"-csearch_path={self.schema},public")
+        self.schema_options = f"-csearch_path={self.schema},public"
         with psycopg.connect(TEST_DB_URL, connect_timeout=5, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(f'CREATE SCHEMA "{self.schema}"')
@@ -47,7 +38,8 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
     def _run_module(self, module: str, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["PYTHONPATH"] = str(ROOT / "src")
-        env["DATABASE_URL"] = self.schema_db_url
+        env["DATABASE_URL"] = TEST_DB_URL or ""
+        env["PGOPTIONS"] = self.schema_options
         return subprocess.run(
             [sys.executable, "-m", module, *args],
             cwd=ROOT,
@@ -70,7 +62,7 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
         worker_tick = self._run_module("pokus_backend.worker", "--once")
         self.assertEqual(worker_tick.returncode, 0, msg=worker_tick.stderr)
 
-        with psycopg.connect(self.schema_db_url, connect_timeout=5, autocommit=True) as conn:
+        with psycopg.connect(TEST_DB_URL, connect_timeout=5, autocommit=True, options=self.schema_options) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -84,7 +76,7 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
 
                 expected = {
                     "exchange_day_load",
-                    "instrument_day",
+                    "instrument_load_outcome",
                     "provider_attempt",
                     "price_record",
                     "publication_record",
@@ -135,7 +127,15 @@ class Milestone1IntegrationGateTests(unittest.TestCase):
         self.assertIsInstance(schedule, TradingDayDecision)
         self.assertEqual(schedule.status, TradingDayStatus.EXPECTED_TRADING_DAY)
 
-        health = collect_platform_health(self.schema_db_url, 30.0, 60.0)
+        prior_pgoptions = os.environ.get("PGOPTIONS")
+        os.environ["PGOPTIONS"] = self.schema_options
+        try:
+            health = collect_platform_health(TEST_DB_URL or "", 30.0, 60.0)
+        finally:
+            if prior_pgoptions is None:
+                os.environ.pop("PGOPTIONS", None)
+            else:
+                os.environ["PGOPTIONS"] = prior_pgoptions
         self.assertIn("status", health)
         self.assertIn("checks", health)
         self.assertEqual(set(health["checks"].keys()), {"api", "database", "worker_heartbeat", "scheduler_heartbeat", "queue", "backup"})

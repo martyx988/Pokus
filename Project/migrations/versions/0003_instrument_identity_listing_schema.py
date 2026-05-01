@@ -1,7 +1,7 @@
 """Instrument identity, listing, identifiers, and support state schema.
 
-Revision ID: 0003_instrument_identity_listing_schema
-Revises: 0002_exchange_instrument_type_schema
+Revision ID: 0003_instrument_identity_listing
+Revises: 0002_exchange_instrument_type
 Create Date: 2026-05-01
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0003_instrument_identity_listing_schema"
-down_revision = "0002_exchange_instrument_type_schema"
+revision = "0003_instrument_identity_listing"
+down_revision = "0002_exchange_instrument_type"
 branch_labels = None
 depends_on = None
 

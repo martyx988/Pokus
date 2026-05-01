@@ -1,6 +1,6 @@
 """Admin command and audit record schema.
 
-Revision ID: 0004_admin_command_audit_record_schema
+Revision ID: 0004_admin_command_audit_record
 Revises: 0002_load_jobs, 0003_provider_attempt_schema
 Create Date: 2026-05-01
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0004_admin_command_audit_record_schema"
+revision = "0004_admin_command_audit_record"
 down_revision = ("0002_load_jobs", "0003_provider_attempt_schema")
 branch_labels = None
 depends_on = None

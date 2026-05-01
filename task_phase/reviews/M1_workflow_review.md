@@ -23,9 +23,8 @@ Review date: 2026-05-01
 
 - Milestone scope coverage: **passed**
   - T1-T17 artifacts exist and map to M1 scope.
-- Focused validation/integration evidence: **passed via explicit waiver**
-  - Integration suite rerun on 2026-05-01 and returned `OK (skipped=1)` for live PostgreSQL gate.
-  - Explicit waiver statement is embedded below.
+- Focused validation/integration evidence: **passed**
+  - Live PostgreSQL integration gate executed on 2026-05-01 and passed.
 - Open questions: **passed**
   - none (live DB evidence requirement closed by dated explicit waiver decision).
 
@@ -71,21 +70,18 @@ Direct-on-main M1 implementation commits recorded as explicit legacy exceptions:
 
 `cf8f12e`, `5a05f95`, `9153778`, `5c5bab5`, `3d83609`, `77b3b6f`, `a03bab1`, `055bace`, `ab60240`, `10f00b4`, `531af22`, `46e7608`, `182b768`, `c5beede`, `b37a27e`, `78e4bc1`
 
-## Embedded Evidence: T20 Validation/Waiver
+## Embedded Evidence: T20 Validation
 
 - Validation command (from `Project/`):  
-  `$env:PYTHONPATH='src'; python -m unittest tests.test_entrypoints_smoke tests.test_auth_boundary tests.test_calendar_service tests.test_load_jobs tests.test_health_reporting tests.test_observability tests.test_m1_integration_gate -v`
-- Result on 2026-05-01: `OK (skipped=1)`
-- Skipped test: `tests.test_m1_integration_gate...test_m1_platform_foundation_integration_gate`
-- Skip reason: `Set TEST_DATABASE_URL or DATABASE_URL for T17 integration gate tests.`
-- Environment condition: `TEST_DATABASE_URL` unset, `DATABASE_URL` unset.
-- Waiver statement: live PostgreSQL evidence is waived for this run due to unavailable reachable PostgreSQL credentials/endpoint with schema-create privileges.
+  `$env:PYTHONPATH='src'; $env:TEST_DATABASE_URL='postgresql://postgres:postgres@localhost:5432/pokus'; python -m unittest tests.test_m1_integration_gate -v`
+- Result on 2026-05-01: `OK`
+- Live PostgreSQL gate executed with Docker PostgreSQL runtime.
 
 ## Gap Status
 
-1. Live PostgreSQL integration-gate execution evidence: resolved via explicit waiver (embedded above).
+1. Live PostgreSQL integration-gate execution evidence: resolved via live execution (embedded above).
 2. Task completion-status formatting consistency: resolved via T19 status normalization.
 
 ## Final Recommendation
 
-Mark M1 `completed`. Process and product gates are satisfied (with explicit legacy process-policy waiver and explicit T20 live-gate waiver record).
+Mark M1 `completed`. Process and product gates are satisfied (with explicit legacy process-policy waiver for branch policy and live PostgreSQL integration evidence captured).

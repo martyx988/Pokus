@@ -1,7 +1,7 @@
 """Price record schema.
 
 Revision ID: 0005_price_record_schema
-Revises: 0003_instrument_identity_listing_schema, 0003_provider_attempt_schema
+Revises: 0003_instrument_identity_listing, 0003_provider_attempt_schema
 Create Date: 2026-05-01
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0005_price_record_schema"
-down_revision = ("0003_instrument_identity_listing_schema", "0003_provider_attempt_schema")
+down_revision = ("0003_instrument_identity_listing", "0003_provider_attempt_schema")
 branch_labels = None
 depends_on = None
 

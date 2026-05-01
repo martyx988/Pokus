@@ -1,7 +1,7 @@
 """Add publication and quality-check schema.
 
-Revision ID: 0004_publication_and_quality_schema
-Revises: 0003_exchange_day_load_and_outcomes
+Revision ID: 0004_publication_quality
+Revises: 0003_exchange_day_load_outcomes
 Create Date: 2026-05-01
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0004_publication_and_quality_schema"
-down_revision = "0003_exchange_day_load_and_outcomes"
+revision = "0004_publication_quality"
+down_revision = "0003_exchange_day_load_outcomes"
 branch_labels = None
 depends_on = None
 

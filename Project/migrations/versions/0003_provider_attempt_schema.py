@@ -1,7 +1,7 @@
 """Provider and provider attempt evidence schema.
 
 Revision ID: 0003_provider_attempt_schema
-Revises: 0002_exchange_instrument_type_schema
+Revises: 0002_exchange_instrument_type
 Create Date: 2026-05-01
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0003_provider_attempt_schema"
-down_revision = "0002_exchange_instrument_type_schema"
+down_revision = "0002_exchange_instrument_type"
 branch_labels = None
 depends_on = None
 

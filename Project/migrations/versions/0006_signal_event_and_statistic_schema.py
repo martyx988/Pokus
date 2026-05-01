@@ -1,6 +1,6 @@
 """Signal event and statistic schema.
 
-Revision ID: 0006_signal_event_and_statistic_schema
+Revision ID: 0006_signal_event_and_statistic
 Revises: 0005_price_record_schema
 Create Date: 2026-05-01
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0006_signal_event_and_statistic_schema"
+revision = "0006_signal_event_and_statistic"
 down_revision = "0005_price_record_schema"
 branch_labels = None
 depends_on = None

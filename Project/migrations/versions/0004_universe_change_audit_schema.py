@@ -1,7 +1,7 @@
 """Universe change audit schema.
 
-Revision ID: 0004_universe_change_audit_schema
-Revises: 0003_instrument_identity_listing_schema
+Revision ID: 0004_universe_change_audit
+Revises: 0003_instrument_identity_listing
 Create Date: 2026-05-01
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0004_universe_change_audit_schema"
-down_revision = "0003_instrument_identity_listing_schema"
+revision = "0004_universe_change_audit"
+down_revision = "0003_instrument_identity_listing"
 branch_labels = None
 depends_on = None
 
