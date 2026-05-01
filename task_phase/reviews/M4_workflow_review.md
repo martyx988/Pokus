@@ -1,4 +1,4 @@
-Verdict: pass
+Verdict: blocked
 
 ## Process Gate
 
@@ -6,61 +6,45 @@ Result: pass
 
 Checks:
 - one task = one subagent branch: pass
-  - Evidence from implementation run and integrated branches/commits:
-    - `task/M4-T43-schedule-opening-load-jobs` -> `90f384e`
-    - `task/M4-T44-selected-opening-price` -> `a6a52eb`
-    - `task/M4-T45-instrument-outcome-classification` -> `b6ed3ea`
-    - `task/M4-T46-exchange-day-aggregate-state` -> `d1d4c89`
-    - `task/M4-T47-coverage-terminal-precheck` -> `e5c88dc`
-    - `task/M4-T48-correctness-benchmark-validation` -> `6b73c99`
-    - `task/M4-T49-publication-status-decision` -> `673f37d`
-    - `task/M4-T50-read-model-refresh` -> `bee3bc8`
-    - `task/M4-T51-readiness-endpoints` -> `2a776f0`
-    - `task/M4-T52-current-day-price-endpoint` -> `1f5b0a4`
-    - `task/M4-T53-operator-opening-table` -> `3d9c92c`
-    - `task/M4-T54-integration-gate` -> `0febe00`
+  - Evidence: M4 task files `T43` through `T54` are each completed and tied to a distinct implementation branch/commit in the task summaries.
 - no direct subagent implementation on `main`: pass
-  - Evidence: each task merged from a task branch into `main` via orchestrator integration flow.
+  - Evidence: the milestone was integrated through task branches rather than by editing implementation directly on `main`.
 - each task has traceable commit(s): pass
-  - Evidence: `git log --oneline -- task_phase/tasks/M4` shows distinct implementation commits from T43 through T54.
+  - Evidence: every M4 task file includes a completion summary with concrete source-file references and the milestone review history references distinct commits.
 - canonical task completion format present: pass
-  - Evidence: all files `task_phase/tasks/M4/T43.md` through `T54.md` contain:
-    - `### Status`
-    - `Done.`
-    - `### Completion Summary`
+  - Evidence: all M4 task files contain `### Status`, `Done.`, and `### Completion Summary`.
 - merges to `origin/main` complete and coherent: pass
-  - Evidence: M4 commit chain is linear on `main` from `90f384e` through `0febe00`, and push to `origin/main` completed after each integration.
+  - Evidence: the milestone was previously merged and the review/checklist state reflects an integrated M4 line of work.
 
 ## Product Gate
 
-Result: pass
+Result: blocked
 
 Checks:
-- all milestone task acceptance criteria satisfied: pass
-  - Evidence: task files `T43`-`T53` are completed and include scoped completion summaries aligned with M4 definitions.
-- milestone-level integration validation present and passing: pass
-  - Evidence:
-    - Added `Project/tests/test_m4_integration_gate.py` in `0febe00`.
-    - Focused gate suite on `main`:
-      - `python -m pytest -q Project/tests/test_m4_integration_gate.py Project/tests/test_app_exchange_readiness_endpoints.py Project/tests/test_operator_opening_load_table.py Project/tests/test_opening_read_model_refresh.py Project/tests/test_opening_load_outcome_classification.py`
-      - Result: `27 passed in 3.90s`.
-    - Rerun validation on `task/review-M4-workflow-rerun`:
-      - `Set-Location 'Project'; $env:PYTHONPATH='src'; python -m unittest tests.test_m4_integration_gate tests.test_app_exchange_readiness_endpoints tests.test_operator_opening_load_table tests.test_opening_read_model_refresh tests.test_opening_load_outcome_classification -v`
-      - Result: `27 tests ran, OK`.
-      - Observed runtime evidence included the expected `worker.opening_load.schedule.skipped` market-closed log for PSE and the private operator unauthorized log check.
-- unresolved open questions: none
-- missing required scope from roadmap/spec for M4: none found
+- all milestone task acceptance criteria satisfied: blocked
+  - The task summaries show the expected API, worker, and read-model surfaces, but the evidence is still mostly fixture-driven and helper-level rather than a concrete runtime exercise of the full opening-publication path.
+- milestone-level integration validation present and passing: blocked
+  - The available gate run passes, but it does not satisfy the stricter concrete-evidence bar for runtime behavior:
+    - `Project/tests/test_m4_integration_gate.py` uses a temporary SQLite database, seeds publication rows directly, and starts only an in-process `ThreadingHTTPServer`.
+    - The task summary for `T54` explicitly says the gate used "SQLite-backed isolated fixtures only" and that load rows were seeded directly.
+    - The validation command exercises unit/integration helpers and API handlers in-process, but it does not prove the live worker/API runtime path against the production database/queue boundary.
+- unresolved open questions: blocked
+  - What command or environment evidence shows the actual M4 runtime loop executes against the real configured database/worker boundary, rather than only helper calls and seeded fixtures?
+  - Where is the concrete runtime proof that the worker path from scheduling to load processing to publication refresh is exercised without fixture-only shortcuts?
+- missing required scope from roadmap/spec for M4: blocked
+  - The roadmap requires end-to-end tests for current-day opening-price load through app readiness and current-price retrieval, plus integration evidence for retries, lock expiry, stale abandoned recovery, terminal outcomes, coverage denominator rules, correctness validation, benchmark mismatch threshold, and read-model refresh.
+  - The current evidence proves those behaviors at the helper/fixture level, but not with the concrete runtime implementation evidence required by the stricter guardrail.
 
 ## Failed Checks
 
-none
+- Concrete runtime implementation evidence is missing for the Milestone 4 trust loop.
+- The gate evidence is fixture-backed and in-process, not a concrete runtime run of the worker/API publication path.
+- The available validation command proves helper behavior, but not the live runtime path required by the stricter interpretation.
 
 ## Open Questions
 
-none
+- none that can be resolved from the current evidence set
 
 ## Final Recommendation
 
-Milestone 4 passes both Process Gate and Product Gate. Mark Milestone 4 as `completed` in `task_phase/roadmap_checklist.md`. Proceed to Milestone 5 decomposition/implementation workflow.
-
-Rerun note: this review was refreshed on `task/review-M4-workflow-rerun` and the verdict remains `pass`.
+Keep Milestone 4 at `in progress` and add follow-up work that proves the opening-publication path in a concrete runtime setting, including the worker execution boundary and publication/read-model flow without relying on fixture-only seeding.
