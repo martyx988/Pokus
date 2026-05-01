@@ -32,7 +32,7 @@ Use their `SKILL.md` files as the source of truth.
 - Keep workspace clean during orchestration: avoid committing runtime artifacts; rely on `.gitignore` for caches.
 - Use unique migration revisions per task to avoid parallel migration-id collisions.
 - after subagent is finished and orchestrator has merged its branch to main, delete the subagent to make space for new ones (since there is a limit of 6 subagents)
-- after all milestone tasks are done, use workflow-reviewer local skill to verify it and the workflow until it passes.
+- after all milestone tasks are done, use workflow-reviewer local skill to verify it.
 
 ---
 
