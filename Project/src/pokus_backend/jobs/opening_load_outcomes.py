@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from pokus_backend.domain.publication_models import QualityCheck
+from pokus_backend.domain.publication_models import PublicationRecord, QualityCheck
 from pokus_backend.domain.load_tracking_models import ExchangeDayLoad, InstrumentLoadOutcome
 
 
@@ -47,6 +47,14 @@ class OpeningCorrectnessValidationResult:
     correctness_result: str
     publication_blocked: bool
     publication_blocked_reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class OpeningPublicationDecisionResult:
+    publication_status: str
+    is_ready: bool
+    status_updated_at: datetime
+    published_at: datetime | None
 
 
 def classify_opening_load_outcome(payload: OpeningLoadOutcomeInput) -> OpeningLoadOutcomeClassification:
@@ -287,6 +295,48 @@ def evaluate_and_persist_opening_correctness_validation(
     )
 
 
+def decide_and_persist_opening_publication_status(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+    decided_at: datetime | None = None,
+) -> OpeningPublicationDecisionResult:
+    exchange_day_load = session.scalar(
+        select(ExchangeDayLoad).where(ExchangeDayLoad.id == exchange_day_load_id)
+    )
+    if exchange_day_load is None:
+        raise ValueError(f"unknown exchange_day_load_id: {exchange_day_load_id}")
+
+    quality_check = session.scalar(
+        select(QualityCheck).where(QualityCheck.exchange_day_load_id == exchange_day_load_id)
+    )
+    precheck = compute_publication_terminal_coverage_precheck(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+    )
+    publication_status = _decide_publication_status(
+        aggregate_status=exchange_day_load.status,
+        precheck=precheck,
+        quality_check=quality_check,
+    )
+    now_utc = _as_utc(decided_at) or datetime.now(timezone.utc)
+    publication_record = _get_or_create_publication_record(
+        session,
+        exchange_day_load_id=exchange_day_load_id,
+    )
+    publication_record.status = publication_status
+    publication_record.status_updated_at = now_utc
+    publication_record.published_at = now_utc if publication_status == "ready" else None
+    session.flush()
+
+    return OpeningPublicationDecisionResult(
+        publication_status=publication_status,
+        is_ready=publication_status == "ready",
+        status_updated_at=now_utc,
+        published_at=publication_record.published_at,
+    )
+
+
 def _count_terminal_outcomes_for_exchange_day(
     session: Session,
     *,
@@ -358,6 +408,50 @@ def _get_or_create_quality_check(
     session.add(quality_check)
     session.flush()
     return quality_check
+
+
+def _get_or_create_publication_record(
+    session: Session,
+    *,
+    exchange_day_load_id: int,
+) -> PublicationRecord:
+    existing = session.scalar(
+        select(PublicationRecord).where(PublicationRecord.exchange_day_load_id == exchange_day_load_id)
+    )
+    if existing is not None:
+        return existing
+
+    record = PublicationRecord(exchange_day_load_id=exchange_day_load_id, status="unpublished")
+    session.add(record)
+    session.flush()
+    return record
+
+
+def _decide_publication_status(
+    *,
+    aggregate_status: str,
+    precheck: PublicationTerminalCoveragePrecheck,
+    quality_check: QualityCheck | None,
+) -> str:
+    if aggregate_status == "market_closed":
+        return "market_closed"
+    if aggregate_status == "failed":
+        return "failed"
+
+    quality_passed = (
+        quality_check is not None
+        and quality_check.correctness_result == "passed"
+        and not quality_check.publication_blocked
+    )
+    is_ready = (
+        aggregate_status == "ready"
+        and precheck.has_all_terminal_outcomes
+        and precheck.has_gt_99_coverage
+        and quality_passed
+    )
+    if is_ready:
+        return "ready"
+    return "blocked"
 
 
 def _build_benchmark_mismatch_summary(

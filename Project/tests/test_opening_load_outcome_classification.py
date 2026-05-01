@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 
 from pokus_backend.domain import Base, Exchange, Instrument, InstrumentType, Listing
 from pokus_backend.domain.load_tracking_models import ExchangeDayLoad
-from pokus_backend.domain.publication_models import QualityCheck
+from pokus_backend.domain.publication_models import PublicationRecord, QualityCheck
 from pokus_backend.jobs.opening_load_outcomes import (
     OpeningLoadOutcomeInput,
     classify_opening_load_outcome,
     compute_publication_terminal_coverage_precheck,
+    decide_and_persist_opening_publication_status,
     evaluate_and_persist_opening_correctness_validation,
     upsert_opening_load_outcome,
 )
@@ -32,6 +33,7 @@ class OpeningLoadOutcomeClassificationTests(unittest.TestCase):
                 Exchange.__table__,
                 ExchangeDayLoad.__table__,
                 Base.metadata.tables["instrument_load_outcome"],
+                PublicationRecord.__table__,
                 QualityCheck.__table__,
             ],
         )
@@ -355,6 +357,112 @@ class OpeningLoadOutcomeClassificationTests(unittest.TestCase):
         self.assertEqual(row.correctness_result, "failed")
         self.assertTrue(row.publication_blocked)
         self.assertEqual(row.publication_blocked_reason, "correctness_validation_failed")
+
+    def test_publication_decision_marks_ready_when_all_readiness_checks_pass(self) -> None:
+        self._seed_precheck_population(total=100, succeeded=100, failed=0)
+        evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=20,
+            benchmark_mismatch_count=0,
+        )
+        self.session.refresh(self.exchange_day_load)
+        self.assertEqual(self.exchange_day_load.status, "ready")
+
+        decided = decide_and_persist_opening_publication_status(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            decided_at=datetime(2026, 5, 1, 15, 0, tzinfo=timezone.utc),
+        )
+        self.session.commit()
+
+        self.assertEqual(decided.publication_status, "ready")
+        self.assertTrue(decided.is_ready)
+        row = self.session.query(PublicationRecord).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.status, "ready")
+        self.assertEqual(row.status_updated_at, datetime(2026, 5, 1, 15, 0))
+        self.assertEqual(row.published_at, datetime(2026, 5, 1, 15, 0))
+
+    def test_publication_decision_keeps_blocked_when_validation_blocks_ready(self) -> None:
+        self._seed_precheck_population(total=100, succeeded=100, failed=0)
+        evaluate_and_persist_opening_correctness_validation(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            benchmark_compared_count=0,
+            benchmark_mismatch_count=0,
+        )
+        self.session.refresh(self.exchange_day_load)
+        self.assertEqual(self.exchange_day_load.status, "ready")
+
+        decided = decide_and_persist_opening_publication_status(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+        self.session.commit()
+
+        self.assertEqual(decided.publication_status, "blocked")
+        self.assertFalse(decided.is_ready)
+        row = self.session.query(PublicationRecord).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.status, "blocked")
+        self.assertIsNone(row.published_at)
+
+    def test_publication_decision_maps_failed_aggregate_to_failed(self) -> None:
+        failed = classify_opening_load_outcome(OpeningLoadOutcomeInput(has_selected_price=False, stale=True))
+        upsert_opening_load_outcome(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+            listing_id=self.listing.id,
+            job_id=None,
+            classification=failed,
+            occurred_at=datetime(2026, 5, 1, 14, 0, tzinfo=timezone.utc),
+        )
+        self.session.commit()
+        self.session.refresh(self.exchange_day_load)
+        self.assertEqual(self.exchange_day_load.status, "failed")
+
+        decided = decide_and_persist_opening_publication_status(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+        self.session.commit()
+
+        self.assertEqual(decided.publication_status, "failed")
+        self.assertFalse(decided.is_ready)
+        row = self.session.query(PublicationRecord).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.status, "failed")
+        self.assertIsNone(row.published_at)
+
+    def test_publication_decision_preserves_market_closed_status(self) -> None:
+        self.exchange_day_load.status = "market_closed"
+        self.session.commit()
+
+        decided = decide_and_persist_opening_publication_status(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+        self.session.commit()
+
+        self.assertEqual(decided.publication_status, "market_closed")
+        self.assertFalse(decided.is_ready)
+        row = self.session.query(PublicationRecord).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.status, "market_closed")
+        self.assertIsNone(row.published_at)
+
+    def test_publication_decision_maps_in_progress_to_blocked_fail_closed(self) -> None:
+        self.exchange_day_load.status = "in_progress"
+        self.session.commit()
+
+        decided = decide_and_persist_opening_publication_status(
+            self.session,
+            exchange_day_load_id=self.exchange_day_load.id,
+        )
+        self.session.commit()
+
+        self.assertEqual(decided.publication_status, "blocked")
+        self.assertFalse(decided.is_ready)
+        row = self.session.query(PublicationRecord).filter_by(exchange_day_load_id=self.exchange_day_load.id).one()
+        self.assertEqual(row.status, "blocked")
+        self.assertIsNone(row.published_at)
 
     def _seed_precheck_population(self, *, total: int, succeeded: int, failed: int) -> None:
         self.assertEqual(succeeded + failed, total)

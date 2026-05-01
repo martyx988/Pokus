@@ -12,11 +12,13 @@ from pokus_backend.jobs.opening_load_scheduler import (
     schedule_today_opening_load_jobs,
 )
 from pokus_backend.jobs.opening_load_outcomes import (
+    OpeningPublicationDecisionResult,
     OpeningLoadOutcomeClassification,
     OpeningLoadOutcomeInput,
     PublicationTerminalCoveragePrecheck,
     classify_opening_load_outcome,
     compute_publication_terminal_coverage_precheck,
+    decide_and_persist_opening_publication_status,
     upsert_opening_load_outcome,
 )
 from pokus_backend.jobs.opening_load_worker import (
@@ -37,6 +39,7 @@ __all__ = [
     "LoadJob",
     "LoadJobState",
     "OpeningLoadInstrumentResult",
+    "OpeningPublicationDecisionResult",
     "OpeningLoadScheduleResult",
     "OpeningLoadSourcePolicy",
     "PublicationTerminalCoveragePrecheck",
@@ -45,6 +48,7 @@ __all__ = [
     "can_transition_load_job_state",
     "classify_opening_load_outcome",
     "compute_publication_terminal_coverage_precheck",
+    "decide_and_persist_opening_publication_status",
     "execute_opening_load_for_instrument_day",
     "is_terminal_load_job_state",
     "OpeningLoadOutcomeClassification",
