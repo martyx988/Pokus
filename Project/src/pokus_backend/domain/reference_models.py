@@ -54,6 +54,7 @@ class Provider(Base):
 class ProviderAttempt(Base):
     __tablename__ = "provider_attempt"
     __table_args__ = (
+        CheckConstraint("length(trim(attempt_key)) > 0", name="ck_provider_attempt_attempt_key_nonempty"),
         CheckConstraint("latency_ms IS NULL OR latency_ms >= 0", name="ck_provider_attempt_latency_nonnegative"),
         CheckConstraint(
             "result_status IN ('success','timeout','error','rate_limited')",
@@ -64,6 +65,7 @@ class ProviderAttempt(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     provider_id: Mapped[int] = mapped_column(ForeignKey("provider.id"), nullable=False)
     exchange_id: Mapped[int] = mapped_column(ForeignKey("exchange.id"), nullable=False)
+    attempt_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     request_purpose: Mapped[str] = mapped_column(String(64), nullable=False)
     load_type: Mapped[str] = mapped_column(String(64), nullable=False)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -46,6 +46,7 @@ class PriceRecordModelTests(unittest.TestCase):
         self.session.add(self.listing)
         self.session.flush()
         self.provider_attempt = ProviderAttempt(
+            attempt_key="poly-nyse-pricing-daily-open-1",
             provider_id=self.provider.id,
             exchange_id=self.exchange.id,
             request_purpose="pricing",

@@ -75,6 +75,7 @@ class ReferenceModelsTests(unittest.TestCase):
         exchange = Exchange(code="NYSE", name="New York Stock Exchange", is_launch_active=True)
         now = datetime.now(timezone.utc)
         attempt = ProviderAttempt(
+            attempt_key="poly-nyse-pricing-daily-close-1",
             provider=provider,
             exchange=exchange,
             request_purpose="pricing",
@@ -101,6 +102,7 @@ class ReferenceModelsTests(unittest.TestCase):
         provider = Provider(code="AV", name="Alpha Vantage", is_active=True)
         exchange = Exchange(code="NASDAQ", name="Nasdaq", is_launch_active=True)
         attempt = ProviderAttempt(
+            attempt_key="av-nasdaq-pricing-intraday-1",
             provider=provider,
             exchange=exchange,
             request_purpose="pricing",
@@ -122,6 +124,7 @@ class ReferenceModelsTests(unittest.TestCase):
         provider = Provider(code="IEX", name="IEX Cloud", is_active=True)
         exchange = Exchange(code="PSE", name="Prague Stock Exchange", is_launch_active=True)
         attempt = ProviderAttempt(
+            attempt_key="iex-pse-pricing-batch-1",
             provider=provider,
             exchange=exchange,
             request_purpose="pricing",
