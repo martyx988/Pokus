@@ -11,7 +11,7 @@ Allowed statuses:
 | --- | --- |
 | Milestone 1: Platform Skeleton and Domain Foundation | in progress |
 | Milestone 2: Admin Scope, Calendar, and Universe Discovery Slice | in progress |
-| Milestone 3: Provider Validation and Source Prioritization Foundation | completed |
+| Milestone 3: Provider Validation and Source Prioritization Foundation | in progress |
 | Milestone 4: Core Daily Opening Publication Slice | completed |
 | Milestone 5: Historical Close Loading and 30-Day App Bootstrap | not started |
 | Milestone 6: Initial Historical Fill and Signal Baseline | not started |

@@ -1,23 +1,23 @@
 # M3 Workflow Review
 
-Verdict: pass
+Verdict: blocked
 
-Rerun branch: `task/review-M3-workflow-rerun`
+Rerun branch: `task/review-M3-concrete-evidence-rerun`
 Rerun date: `2026-05-01`
 
 ## Process Gate Results
 
 ### One task = one subagent branch
 - Pass.
-- Evidence: task branches exist for `task/m3-t32-...` through `task/m3-t42-...`.
+- Evidence: task files exist for `task_phase/tasks/M3/T32.md` through `T42.md`, matching the decomposed M3 task set.
 
 ### No direct subagent implementation on `main`
 - Pass.
-- Evidence: Milestone 3 implementation on `main` is composed of integrated task commits (T32-T42), each mapped to a task branch/commit from orchestration.
+- Evidence: the M3 implementation is represented by traceable commits in the task history rather than a direct untracked edit path on `main`.
 
 ### Each task has traceable commit(s)
 - Pass.
-- Evidence (main):
+- Evidence from `git log`:
   - T32 -> `26fc2cb`
   - T33 -> `e3d4582`
   - T34 -> `4e92c68`
@@ -32,44 +32,48 @@ Rerun date: `2026-05-01`
 
 ### Canonical completion format in task files
 - Pass.
-- Evidence: all `task_phase/tasks/M3/T32.md` through `T42.md` contain:
-  - `### Status`
-  - `Done.`
-  - `### Completion Summary`
+- Evidence: the task files contain `### Status`, `Done.`, and `### Completion Summary`.
 
 ### Merges to `origin/main` complete and coherent
 - Pass.
-- Evidence:
-  - M3 implementation commits and checklist update are present on `main` and pushed to `origin/main`.
-  - Milestone status update commit: `075315e`.
+- Evidence: the M3 completion and prior review rerun commits are present in the branch history.
 
 ## Product Gate Results
 
 ### Milestone task acceptance criteria satisfied
-- Pass.
-- Evidence: each M3 task file includes completion summary and scoped test evidence aligned to task acceptance criteria.
+- Blocked.
+- The milestone has real persistence and runtime wiring, but the concrete-evidence bar is not met for the validation side of M3.
+- `[project/tests/test_m3_integration_gate.py](C:/Users/marty/VS%20Code%20-%20GitHub/Backend/project/tests/test_m3_integration_gate.py)` seeds `ProviderAttempt`, `CandidatePriceValue`, and `ValidationExchangeReport` rows in an in-memory SQLite database and asserts against those seeded fixtures.
+- The task summary for T42 explicitly says the focused M3 integration gate used SQLite in-memory tests and required no external provider/network dependencies.
+- That is not sufficient under the new guardrails when the roadmap/spec intent is to validate real runtime behavior rather than contract-only or fixture-only evidence.
 
 ### Milestone-level integration/validation present and passing
-- Pass.
-- Evidence:
-  - T42 adds `Project/tests/test_m3_integration_gate.py`.
-  - Reviewer rerun: `PYTHONPATH=src python -m pytest -q tests/test_m3_integration_gate.py` -> `1 passed` (May 1, 2026).
+- Blocked.
+- Executed command: `python -m pytest -q project/tests/test_m3_integration_gate.py project/tests/test_validation_run_orchestrator.py project/tests/test_validation_discovery_listing_metrics.py project/tests/test_validation_completeness_timeliness_metrics.py project/tests/test_validation_disagreement_benchmark_metrics.py project/tests/test_validation_calendar_metrics.py`
+- Result: `12 passed`
+- The tests pass, but they are still fixture-backed and in-memory; they do not demonstrate a concrete runtime execution path against live provider adapters or non-mock external integration.
 
 ### No unresolved open questions
-- Pass.
+- Blocked.
+- The review still lacks concrete runtime proof for provider validation outside seeded fixtures.
 
-### No missing required M3 scope from roadmap/spec
-- Pass.
-- Evidence:
-  - Implemented M3 chain: provider adapter contract, provider attempt evidence, candidate value/audit evidence persistence, deterministic source prioritization, provider/exchange reliability updates, launch validation run/report skeleton, three validation metric slices, calendar validation decision path, and milestone integration gate.
+### No missing required scope from roadmap/spec
+- Blocked.
+- M3 scope requires provider validation, source prioritization, and validation reporting that are grounded in runtime evidence.
+- The current evidence proves in-process selection and persistence logic, but not a concrete provider-validation execution path with non-fixture runtime behavior.
 
 ## Failed Checks
-- none
+
+- Concrete runtime implementation evidence for M3 provider validation is missing.
+- Concrete runtime execution evidence for the validation pipeline is missing.
+- Contract-only and fixture-only evidence was used for validation slices where the milestone requires real integration/runtime behavior.
 
 ## Open Questions
-- none
+
+- Which command or runtime path exercises provider validation against non-fixture data?
+- Is there a live provider adapter or other concrete integration evidence that can replace the in-memory SQLite fixture flow?
 
 ## Final Recommendation
-- Milestone 3 passes workflow and product gates.
-- Keep Milestone 3 marked `completed`.
-- Ready to proceed to Milestone 4 planning/implementation.
+
+- Keep Milestone 3 `in progress`.
+- Add non-fixture runtime evidence for provider validation, source prioritization, and validation report generation before re-review.
