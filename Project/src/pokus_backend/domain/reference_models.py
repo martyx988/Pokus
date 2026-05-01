@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -115,4 +116,64 @@ class ProviderExchangeReliabilityScore(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     provider: Mapped[Provider] = relationship()
+    exchange: Mapped[Exchange] = relationship()
+
+
+class ValidationRunState(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class ValidationVerdict(StrEnum):
+    PENDING = "pending"
+    PASS = "pass"
+    FAIL = "fail"
+    BLOCKED = "blocked"
+
+
+class ValidationRun(Base):
+    __tablename__ = "validation_run"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('queued','running','succeeded','failed')",
+            name="ck_validation_run_state",
+        ),
+        CheckConstraint("length(trim(run_key)) > 0", name="ck_validation_run_run_key_nonempty"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    run_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default=ValidationRunState.QUEUED.value)
+    requested_exchange_codes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    reports: Mapped[list["ValidationExchangeReport"]] = relationship(back_populates="run")
+
+
+class ValidationExchangeReport(Base):
+    __tablename__ = "validation_exchange_report"
+    __table_args__ = (
+        CheckConstraint(
+            "final_verdict IN ('pending','pass','fail','blocked')",
+            name="ck_validation_exchange_report_final_verdict",
+        ),
+        UniqueConstraint("validation_run_id", "exchange_id", name="uq_validation_exchange_report_run_exchange"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    validation_run_id: Mapped[int] = mapped_column(ForeignKey("validation_run.id"), nullable=False)
+    exchange_id: Mapped[int] = mapped_column(ForeignKey("exchange.id"), nullable=False)
+    final_verdict: Mapped[str] = mapped_column(String(32), nullable=False, default=ValidationVerdict.PENDING.value)
+    result_buckets: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    findings_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    run: Mapped[ValidationRun] = relationship(back_populates="reports")
     exchange: Mapped[Exchange] = relationship()
