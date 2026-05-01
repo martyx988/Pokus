@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from pokus_backend.discovery.exchange_priority import recompute_exchange_activity_priority
 from pokus_backend.db import check_database_connection
+from pokus_backend.jobs.opening_load_scheduler import schedule_today_opening_load_jobs
 from pokus_backend.validation.run_orchestrator import orchestrate_launch_exchange_validation_run
 from pokus_backend.observability.health import upsert_runtime_heartbeat
 from pokus_backend.observability.logging import log_event
@@ -35,6 +36,20 @@ def run_once() -> None:
         log_event("worker.heartbeat.failed", environment=settings.environment)
     else:
         log_event("worker.heartbeat.updated", environment=settings.environment)
+    engine = create_engine(settings.database_url)
+    try:
+        with Session(engine) as session:
+            schedule_result = schedule_today_opening_load_jobs(session)
+            session.commit()
+    finally:
+        engine.dispose()
+    log_event(
+        "worker.opening_load.schedule.completed",
+        environment=settings.environment,
+        enqueued_count=schedule_result.enqueued_count,
+        skipped_market_closed_count=schedule_result.skipped_market_closed_count,
+        skipped_existing_count=schedule_result.skipped_existing_count,
+    )
 
 
 def main() -> int:
