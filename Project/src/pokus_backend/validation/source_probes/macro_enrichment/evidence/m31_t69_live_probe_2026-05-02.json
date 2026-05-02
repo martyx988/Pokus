@@ -1,0 +1,55 @@
+{
+  "run_key": "m31-t69-live-2026-05-02",
+  "summary": {
+    "sources": 4,
+    "succeeded": 4,
+    "skipped": 0,
+    "failed": 0
+  },
+  "records": [
+    {
+      "source_code": "DBNOMICS",
+      "is_available": true,
+      "auth_required": false,
+      "classification_verdict": "not_for_universe_loader",
+      "assigned_role": "not_for_universe_loader",
+      "quota_rate_limit_notes": "No key required for datasets listing endpoint in this probe run.",
+      "speed_notes": "HTTP 200; 50 dataset docs parsed on first page.",
+      "exchange_coverage_notes": "Provider-level macro datasets (sample IMF codes: AFRREO,APDREO,BOP,BOPAGG,CDIS); no exchange-specific instrument-universe listing feed.",
+      "observed_latency_ms": 3605
+    },
+    {
+      "source_code": "FRED",
+      "is_available": true,
+      "auth_required": false,
+      "classification_verdict": "not_for_universe_loader",
+      "assigned_role": "not_for_universe_loader",
+      "quota_rate_limit_notes": "Live CSV endpoint responded without API-key exchange in this probe run.",
+      "speed_notes": "HTTP 200; 317 GDP rows parsed.",
+      "exchange_coverage_notes": "Macro GDP series only (latest 2026-01-01=31856.257); not instrument listings for NYSE/NASDAQ/PSE universe discovery.",
+      "observed_latency_ms": 162
+    },
+    {
+      "source_code": "IMF",
+      "is_available": true,
+      "auth_required": false,
+      "classification_verdict": "not_for_universe_loader",
+      "assigned_role": "not_for_universe_loader",
+      "quota_rate_limit_notes": "No API key required for DataMapper indicators endpoint in this probe run.",
+      "speed_notes": "HTTP 200; 132 indicators listed.",
+      "exchange_coverage_notes": "Indicator catalog endpoint (contains NGDP_RPCH=True); macro coverage only, not symbol-level exchange universe inputs.",
+      "observed_latency_ms": 735
+    },
+    {
+      "source_code": "WORLDBANK",
+      "is_available": true,
+      "auth_required": false,
+      "classification_verdict": "not_for_universe_loader",
+      "assigned_role": "not_for_universe_loader",
+      "quota_rate_limit_notes": "Public indicator endpoint responded without auth in this probe run.",
+      "speed_notes": "HTTP 200; 20 annual GDP rows sampled.",
+      "exchange_coverage_notes": "Macro country-level GDP series (latest non-null 2024=28750956130731.2); not an equity listing source for launch exchange universe loading.",
+      "observed_latency_ms": 657
+    }
+  ]
+}
