@@ -1,0 +1,115 @@
+{
+  "generated_at_utc": "2026-05-02T07:15:04.973260+00:00",
+  "source_results": [
+    {
+      "classification_verdict": "promote",
+      "note": "probe_completed",
+      "persisted_record_id": 1,
+      "source_code": "NASDAQ_TRADER",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "promote",
+      "note": "probe_completed",
+      "persisted_record_id": 2,
+      "source_code": "NYSE",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 3,
+      "source_code": "PSE_PSE_EDGE",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "promote",
+      "note": "probe_completed",
+      "persisted_record_id": 4,
+      "source_code": "OPENFIGI",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 5,
+      "source_code": "NASDAQ_DATA_LINK",
+      "status": "succeeded"
+    }
+  ],
+  "source_validation_records": [
+    {
+      "assigned_role": "validation_only",
+      "auth_required": false,
+      "classification_verdict": "validation_only",
+      "exchange_coverage_notes": "Nasdaq Data Link returned key-required response; NYSE/NASDAQ/PSE coverage cannot be confirmed without credentials in this run.",
+      "is_available": false,
+      "observed_latency_ms": 513,
+      "quota_rate_limit_notes": "api_key_required status=403; discovery_usefulness=blocked_without_credentials",
+      "recorded_at": "2026-05-02T07:12:51.526456",
+      "source_code": "NASDAQ_DATA_LINK",
+      "speed_notes": "single_request_latency_ms=513; identifier_usefulness=requires_authenticated_access_for_validation",
+      "updated_at": "2026-05-02T07:15:04.971259"
+    },
+    {
+      "assigned_role": "primary_discovery",
+      "auth_required": false,
+      "classification_verdict": "promote",
+      "exchange_coverage_notes": "Official consolidated US listings from Nasdaq Trader observed; PSE/PSE EDGE coverage not expected from this source.",
+      "is_available": true,
+      "observed_latency_ms": 1201,
+      "quota_rate_limit_notes": "public_download status=200; discovery_usefulness=high_for_us_listed_universe_refresh",
+      "recorded_at": "2026-05-02T07:12:48.799491",
+      "source_code": "NASDAQ_TRADER",
+      "speed_notes": "single_request_latency_ms=1201; parsed_rows=12558; identifier_usefulness=contains_exchange_symbols_but_not_figi",
+      "updated_at": "2026-05-02T07:15:02.345818"
+    },
+    {
+      "assigned_role": "primary_discovery",
+      "auth_required": false,
+      "classification_verdict": "promote",
+      "exchange_coverage_notes": "NYSE symbol mapping file NYSESymbolMapping_20260502.txt returned 12577 non-empty lines; coverage signal is strong for NYSE/US symbology, none for PSE/PSE EDGE.",
+      "is_available": true,
+      "observed_latency_ms": 1267,
+      "quota_rate_limit_notes": "public_ftp_index_and_mapping status_codes=200,200; discovery_usefulness=high_for_nyse_symbol_discovery",
+      "recorded_at": "2026-05-02T07:12:50.197977",
+      "source_code": "NYSE",
+      "speed_notes": "latency_ms_total=1267; index=377; mapping=890; identifier_usefulness=nyse_symbology_to_cqs_mapping_present",
+      "updated_at": "2026-05-02T07:15:03.649571"
+    },
+    {
+      "assigned_role": "symbology_normalization",
+      "auth_required": false,
+      "classification_verdict": "promote",
+      "exchange_coverage_notes": "OpenFIGI mapping succeeded for sample ticker; exchange detail present via exchCode, but no direct exchange-level listing discovery coverage for NYSE/NASDAQ/PSE feeds.",
+      "is_available": true,
+      "observed_latency_ms": 409,
+      "quota_rate_limit_notes": "public_api status=200; ratelimit_remaining=23; discovery_usefulness=low_identifier_only_source",
+      "recorded_at": "2026-05-02T07:12:51.008491",
+      "source_code": "OPENFIGI",
+      "speed_notes": "single_request_latency_ms=409; mapping_count=1; identifier_usefulness=high_figi_and_symbology_crosswalk",
+      "updated_at": "2026-05-02T07:15:04.456169"
+    },
+    {
+      "assigned_role": "validation_only",
+      "auth_required": false,
+      "classification_verdict": "validation_only",
+      "exchange_coverage_notes": "PSE Standard Market page reachable=True; Free Market page reachable=True. PSE EDGE label was not explicitly present in sampled pages; Free Market treated as EDGE-adjacent signal for follow-up validation.",
+      "is_available": true,
+      "observed_latency_ms": 394,
+      "quota_rate_limit_notes": "public_html_pages status_codes=200,200; discovery_usefulness=medium_manual_reference_only",
+      "recorded_at": "2026-05-02T07:12:50.598121",
+      "source_code": "PSE_PSE_EDGE",
+      "speed_notes": "latency_ms_total=394; standard=195; free=199; identifier_usefulness=low_no_machine_readable_identifier_map",
+      "updated_at": "2026-05-02T07:15:04.046385"
+    }
+  ],
+  "summary": {
+    "failed_count": 0,
+    "skipped_count": 0,
+    "source_count": 5,
+    "succeeded_count": 5
+  },
+  "task_id": "T68",
+  "validation_run_key": "m3.1-t68-live-20260502"
+}
