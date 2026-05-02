@@ -16,6 +16,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+  dev-worker:
+    image: python:3.11-slim
+    container_name: pokus-dev-worker
+    working_dir: /workspace
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /workspace/src
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/pokus
+    volumes:
+      - ./:/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["python", "-m", "pokus_backend.worker"]
 
 volumes:
   pokus_postgres_data:
