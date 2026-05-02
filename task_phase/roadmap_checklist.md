@@ -12,7 +12,7 @@ Allowed statuses:
 | Milestone 1: Platform Skeleton and Domain Foundation | in progress |
 | Milestone 2: Admin Scope, Calendar, and Universe Discovery Slice | in progress |
 | Milestone 3: Provider Validation and Source Prioritization Foundation | in progress |
-| Milestone 3.1: Real Instrument-Universe Source Validation and Combined Loader | not started |
+| Milestone 3.1: Real Instrument-Universe Source Validation and Combined Loader | tasks created |
 | Milestone 4: Core Daily Opening Publication Slice | in progress |
 | Milestone 5: Historical Close Loading and 30-Day App Bootstrap | not started |
 | Milestone 6: Initial Historical Fill and Signal Baseline | not started |
