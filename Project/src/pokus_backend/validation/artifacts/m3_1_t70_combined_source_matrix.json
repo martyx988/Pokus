@@ -1,0 +1,145 @@
+{
+  "task_id": "T70",
+  "matrix": [
+    {
+      "source_code": "AKSHARE",
+      "milestone_verdict": "fallback_only",
+      "runtime_role": "fallback_discovery",
+      "selectable_for_loader": true,
+      "evidence_origin": "T65"
+    },
+    {
+      "source_code": "ALPHA_VANTAGE",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T66"
+    },
+    {
+      "source_code": "DBNOMICS",
+      "milestone_verdict": "not_for_universe_loader",
+      "runtime_role": "not_for_universe_loader",
+      "selectable_for_loader": false,
+      "evidence_origin": "T69"
+    },
+    {
+      "source_code": "EODHD",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T66"
+    },
+    {
+      "source_code": "FINNHUB",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T66"
+    },
+    {
+      "source_code": "FMP",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T66"
+    },
+    {
+      "source_code": "FRED",
+      "milestone_verdict": "not_for_universe_loader",
+      "runtime_role": "not_for_universe_loader",
+      "selectable_for_loader": false,
+      "evidence_origin": "T69"
+    },
+    {
+      "source_code": "IMF",
+      "milestone_verdict": "not_for_universe_loader",
+      "runtime_role": "not_for_universe_loader",
+      "selectable_for_loader": false,
+      "evidence_origin": "T69"
+    },
+    {
+      "source_code": "MARKETSTACK",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T67"
+    },
+    {
+      "source_code": "NASDAQ_DATA_LINK",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T68"
+    },
+    {
+      "source_code": "NASDAQ_TRADER",
+      "milestone_verdict": "promote",
+      "runtime_role": "primary_discovery",
+      "selectable_for_loader": true,
+      "evidence_origin": "T68"
+    },
+    {
+      "source_code": "NYSE",
+      "milestone_verdict": "promote",
+      "runtime_role": "primary_discovery",
+      "selectable_for_loader": true,
+      "evidence_origin": "T68"
+    },
+    {
+      "source_code": "OPENFIGI",
+      "milestone_verdict": "promote",
+      "runtime_role": "symbology_normalization",
+      "selectable_for_loader": true,
+      "evidence_origin": "T68"
+    },
+    {
+      "source_code": "POLYGON",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T67"
+    },
+    {
+      "source_code": "PSE_PSE_EDGE",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T68"
+    },
+    {
+      "source_code": "STOOQ",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T65"
+    },
+    {
+      "source_code": "TIINGO",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T67"
+    },
+    {
+      "source_code": "TWELVE_DATA",
+      "milestone_verdict": "validation_only",
+      "runtime_role": "validation_only",
+      "selectable_for_loader": false,
+      "evidence_origin": "T67"
+    },
+    {
+      "source_code": "WORLDBANK",
+      "milestone_verdict": "not_for_universe_loader",
+      "runtime_role": "not_for_universe_loader",
+      "selectable_for_loader": false,
+      "evidence_origin": "T69"
+    },
+    {
+      "source_code": "YFINANCE",
+      "milestone_verdict": "fallback_only",
+      "runtime_role": "fallback_discovery",
+      "selectable_for_loader": true,
+      "evidence_origin": "T65"
+    }
+  ]
+}
