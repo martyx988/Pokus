@@ -1,0 +1,75 @@
+{
+  "task_id": "T65",
+  "captured_at_utc": "2026-05-02T07:08:58.636160+00:00",
+  "validation_run_key": "m3.1-t65-live-20260502",
+  "source_results": [
+    {
+      "source_code": "YFINANCE",
+      "status": "succeeded",
+      "classification_verdict": "fallback_only",
+      "record_id": 1
+    },
+    {
+      "source_code": "STOOQ",
+      "status": "succeeded",
+      "classification_verdict": "validation_only",
+      "record_id": 2
+    },
+    {
+      "source_code": "AKSHARE",
+      "status": "succeeded",
+      "classification_verdict": "fallback_only",
+      "record_id": 3
+    }
+  ],
+  "persisted_records": [
+    {
+      "id": 3,
+      "source_code": "AKSHARE",
+      "is_available": true,
+      "auth_required": false,
+      "quota_rate_limit_notes": "No key required on sampled endpoint; upstream field formats can change.",
+      "speed_notes": "latency_ms=2482;status_code=200",
+      "exchange_coverage_notes": "returned_rows=5;reported_total=13163;focus=us_universe_sample",
+      "classification_verdict": "fallback_only",
+      "assigned_role": "metadata_enrichment",
+      "observed_latency_ms": 2482,
+      "recorded_at": "2026-05-02T07:08:58.629646",
+      "updated_at": "2026-05-02T07:08:58.629646"
+    },
+    {
+      "id": 2,
+      "source_code": "STOOQ",
+      "is_available": false,
+      "auth_required": false,
+      "quota_rate_limit_notes": "Stooq response returned no usable priced rows in live probe window.",
+      "speed_notes": "latency_ms=169;status_code=200",
+      "exchange_coverage_notes": "rows=0;priced_rows=0",
+      "classification_verdict": "validation_only",
+      "assigned_role": "validation_only",
+      "observed_latency_ms": 169,
+      "recorded_at": "2026-05-02T07:08:56.145494",
+      "updated_at": "2026-05-02T07:08:56.145494"
+    },
+    {
+      "id": 1,
+      "source_code": "YFINANCE",
+      "is_available": true,
+      "auth_required": false,
+      "quota_rate_limit_notes": "No authentication required; unofficial endpoint may throttle without notice.",
+      "speed_notes": "median_latency_ms=226;sample_count=3",
+      "exchange_coverage_notes": "sample_symbols_covered:AAPL,MSFT,CEZ.PR",
+      "classification_verdict": "fallback_only",
+      "assigned_role": "fallback_discovery",
+      "observed_latency_ms": 226,
+      "recorded_at": "2026-05-02T07:08:55.946075",
+      "updated_at": "2026-05-02T07:08:55.946075"
+    }
+  ],
+  "aggregate": {
+    "source_count": 3,
+    "succeeded_count": 3,
+    "skipped_count": 0,
+    "failed_count": 0
+  }
+}
