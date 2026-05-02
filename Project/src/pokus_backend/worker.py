@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from pokus_backend.discovery.exchange_priority import recompute_exchange_activity_priority
+from pokus_backend.discovery.combined_loader import execute_combined_universe_loader
 from pokus_backend.db import check_database_connection, to_sqlalchemy_url
 from pokus_backend.jobs.opening_load_scheduler import schedule_today_opening_load_jobs
 from pokus_backend.jobs.opening_runtime_trust_loop import execute_opening_runtime_trust_loop
@@ -78,6 +79,11 @@ def main() -> int:
         "--run-opening-trust-loop",
         action="store_true",
         help="Execute opening-load trust-loop runtime path and persist publication/read-model updates.",
+    )
+    parser.add_argument(
+        "--run-combined-universe-loader",
+        action="store_true",
+        help="Execute combined instrument-universe loader runtime path and persist supported-universe state.",
     )
     parser.add_argument(
         "--trust-loop-date",
@@ -260,6 +266,30 @@ def main() -> int:
             blocked=result.blocked_count,
             failed=result.failed_count,
             market_closed=result.market_closed_count,
+        )
+        return 0
+
+    if args.run_combined_universe_loader:
+        engine = create_engine(to_sqlalchemy_url(settings.database_url))
+        try:
+            with Session(engine) as session:
+                result = execute_combined_universe_loader(session)
+                session.commit()
+        finally:
+            engine.dispose()
+        print(
+            "worker-combined-universe-loader-ok "
+            f"env={settings.environment} effective_day={result.effective_day.isoformat()} "
+            f"sources={len(result.selected_sources)} selected_listings={len(result.selected_listing_ids)} "
+            f"persisted_candidates={result.persisted_candidate_count}"
+        )
+        log_event(
+            "worker.combined_universe_loader.completed",
+            environment=settings.environment,
+            effective_day=result.effective_day.isoformat(),
+            source_count=len(result.selected_sources),
+            selected_listing_count=len(result.selected_listing_ids),
+            persisted_candidate_count=result.persisted_candidate_count,
         )
         return 0
 
