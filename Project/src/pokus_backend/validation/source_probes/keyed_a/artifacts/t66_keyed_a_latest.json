@@ -1,0 +1,86 @@
+{
+  "generated_at_utc": "2026-05-02T07:12:02.468526+00:00",
+  "source_results": [
+    {
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 1,
+      "source_code": "EODHD",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 2,
+      "source_code": "FMP",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 3,
+      "source_code": "FINNHUB",
+      "status": "succeeded"
+    },
+    {
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 4,
+      "source_code": "ALPHA_VANTAGE",
+      "status": "succeeded"
+    }
+  ],
+  "source_validation_records": [
+    {
+      "assigned_role": "validation_only",
+      "auth_required": true,
+      "classification_verdict": "validation_only",
+      "exchange_coverage_notes": "US symbol-search matches observed=4; PSE-like matches in CEZ search=0; PSE finding=none_observed_or_uncertain",
+      "is_available": true,
+      "observed_latency_ms": 593,
+      "quota_rate_limit_notes": "auth=required; live_calls=2; status_codes=200,200; provider_note=Thank you for using Alpha Vantage! Please consider spreading out your free API requests more sparingly (1 request per second). You may subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to lift the free key rate limit (25 requests per day), raise the per-second burst limit, and instantly unlock all premium endpoints",
+      "source_code": "ALPHA_VANTAGE",
+      "speed_notes": "latency_ms_total=593; us_search=383; cez_search=210"
+    },
+    {
+      "assigned_role": "validation_only",
+      "auth_required": true,
+      "classification_verdict": "validation_only",
+      "exchange_coverage_notes": "probe_http_error; PSE finding=not_tested_due_to_error",
+      "is_available": false,
+      "observed_latency_ms": 727,
+      "quota_rate_limit_notes": "probe_http_error source=EODHD kind=http_error:401 status=401",
+      "source_code": "EODHD",
+      "speed_notes": "probe_http_error_latency_ms=727"
+    },
+    {
+      "assigned_role": "validation_only",
+      "auth_required": true,
+      "classification_verdict": "validation_only",
+      "exchange_coverage_notes": "probe_http_error; PSE finding=not_tested_due_to_error",
+      "is_available": false,
+      "observed_latency_ms": 189,
+      "quota_rate_limit_notes": "probe_http_error source=FINNHUB kind=http_error:401 status=401; payload_hint=Invalid API key.",
+      "source_code": "FINNHUB",
+      "speed_notes": "probe_http_error_latency_ms=189"
+    },
+    {
+      "assigned_role": "validation_only",
+      "auth_required": true,
+      "classification_verdict": "validation_only",
+      "exchange_coverage_notes": "probe_http_error; PSE finding=not_tested_due_to_error",
+      "is_available": false,
+      "observed_latency_ms": 604,
+      "quota_rate_limit_notes": "probe_http_error source=FMP kind=http_error:401 status=401; payload_hint=Invalid API KEY. Feel free to create a Free API Key or visit https://site.financialmodelingprep.com/faqs?search=why-is-my-api-key-invalid for more information.",
+      "source_code": "FMP",
+      "speed_notes": "probe_http_error_latency_ms=604"
+    }
+  ],
+  "summary": {
+    "failed_count": 0,
+    "skipped_count": 0,
+    "source_count": 4,
+    "succeeded_count": 4
+  },
+  "validation_run_key": "m3.1-t66-live-2026-05-02"
+}
