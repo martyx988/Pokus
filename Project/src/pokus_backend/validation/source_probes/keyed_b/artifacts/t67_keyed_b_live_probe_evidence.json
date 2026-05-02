@@ -1,0 +1,99 @@
+{
+  "task_id": "T67",
+  "command": "python -m pokus_backend.validation.source_probes.keyed_b.live_run --validation-run-key m31-t67-live-2026-05-02-required --sources TIINGO,MARKETSTACK,POLYGON,TWELVE_DATA --sqlite-path src/pokus_backend/validation/source_probes/keyed_b/artifacts/t67_keyed_b_live_probe.sqlite3 --artifact-path src/pokus_backend/validation/source_probes/keyed_b/artifacts/t67_keyed_b_live_probe_evidence.json",
+  "validation_run_key": "m31-t67-live-2026-05-02-required",
+  "summary": {
+    "source_count": 4,
+    "succeeded_count": 4,
+    "skipped_count": 0,
+    "failed_count": 0
+  },
+  "source_results": [
+    {
+      "source_code": "TIINGO",
+      "status": "succeeded",
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 9
+    },
+    {
+      "source_code": "MARKETSTACK",
+      "status": "succeeded",
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 10
+    },
+    {
+      "source_code": "POLYGON",
+      "status": "succeeded",
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 11
+    },
+    {
+      "source_code": "TWELVE_DATA",
+      "status": "succeeded",
+      "classification_verdict": "validation_only",
+      "note": "probe_completed",
+      "persisted_record_id": 12
+    }
+  ],
+  "records": [
+    {
+      "id": 10,
+      "source_code": "MARKETSTACK",
+      "is_available": false,
+      "auth_required": true,
+      "quota_rate_limit_notes": "auth_required status=401 detail=You have not supplied a valid API Access Key. [Technical Support: support@apilayer.com]",
+      "speed_notes": "single_request_latency_ms=404",
+      "exchange_coverage_notes": "Marketstack blocked before successful metadata retrieval; US/PSE coverage could not be confirmed under current credentials.",
+      "observed_latency_ms": 404,
+      "classification_verdict": "validation_only",
+      "assigned_role": "validation_only",
+      "recorded_at": "2026-05-02T07:11:58.134766",
+      "updated_at": "2026-05-02T07:11:58.134766"
+    },
+    {
+      "id": 11,
+      "source_code": "POLYGON",
+      "is_available": false,
+      "auth_required": true,
+      "quota_rate_limit_notes": "auth_required status=401 detail=ERROR:Unknown API Key",
+      "speed_notes": "single_request_latency_ms=352",
+      "exchange_coverage_notes": "Polygon blocked before successful metadata retrieval; US/PSE coverage could not be confirmed under current credentials.",
+      "observed_latency_ms": 352,
+      "classification_verdict": "validation_only",
+      "assigned_role": "validation_only",
+      "recorded_at": "2026-05-02T07:11:58.488025",
+      "updated_at": "2026-05-02T07:11:58.488025"
+    },
+    {
+      "id": 9,
+      "source_code": "TIINGO",
+      "is_available": false,
+      "auth_required": true,
+      "quota_rate_limit_notes": "auth_required status=403 detail=Invalid token.",
+      "speed_notes": "single_request_latency_ms=420",
+      "exchange_coverage_notes": "Tiingo blocked before successful metadata retrieval; US/PSE coverage could not be confirmed under current credentials.",
+      "observed_latency_ms": 420,
+      "classification_verdict": "validation_only",
+      "assigned_role": "validation_only",
+      "recorded_at": "2026-05-02T07:11:57.701779",
+      "updated_at": "2026-05-02T07:11:57.701779"
+    },
+    {
+      "id": 12,
+      "source_code": "TWELVE_DATA",
+      "is_available": false,
+      "auth_required": true,
+      "quota_rate_limit_notes": "auth_required status=200 detail=**apikey** parameter is incorrect or not specified. You can get your free API key instantly following this link: https://twelvedata.com/pricing. If you believe that everything is correct, you can contact us at https://twelvedata.com/contact/customer",
+      "speed_notes": "single_request_latency_ms=192",
+      "exchange_coverage_notes": "TwelveData blocked before successful metadata retrieval; US/PSE coverage could not be confirmed under current credentials.",
+      "observed_latency_ms": 192,
+      "classification_verdict": "validation_only",
+      "assigned_role": "validation_only",
+      "recorded_at": "2026-05-02T07:11:58.682272",
+      "updated_at": "2026-05-02T07:11:58.682272"
+    }
+  ]
+}
