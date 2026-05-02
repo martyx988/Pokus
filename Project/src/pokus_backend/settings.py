@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 
@@ -26,5 +27,15 @@ def load_settings() -> Settings:
         app_read_token=os.getenv("APP_READ_TOKEN", "dev-app-token"),
         operator_session_token=os.getenv("OPERATOR_SESSION_TOKEN", "dev-operator-token"),
         admin_session_token=os.getenv("ADMIN_SESSION_TOKEN", "dev-admin-token"),
+    )
+
+
+def default_source_probe_secret_env_vars(source_code: str) -> tuple[str, str]:
+    normalized = re.sub(r"[^A-Z0-9]+", "_", source_code.strip().upper()).strip("_")
+    if not normalized:
+        raise ValueError("source_code must be a non-empty string")
+    return (
+        f"{normalized}_API_KEY",
+        f"SOURCE_PROBE_{normalized}_API_KEY",
     )
 
