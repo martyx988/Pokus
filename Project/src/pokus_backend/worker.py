@@ -16,6 +16,7 @@ from pokus_backend.jobs.opening_load_scheduler import schedule_today_opening_loa
 from pokus_backend.jobs.opening_runtime_trust_loop import execute_opening_runtime_trust_loop
 from pokus_backend.validation.run_orchestrator import orchestrate_launch_exchange_validation_run
 from pokus_backend.validation.live_source_probe_runner import run_live_source_probes
+from pokus_backend.validation.source_probes.non_keyed.probe_registry import build_non_keyed_live_source_probe_registry
 from pokus_backend.observability.health import upsert_runtime_heartbeat
 from pokus_backend.observability.logging import log_event
 from pokus_backend.settings import load_settings
@@ -169,6 +170,7 @@ def main() -> int:
                     session,
                     source_codes=target_sources,
                     validation_run_key=args.source_probe_run_key,
+                    probe_registry=build_non_keyed_live_source_probe_registry(),
                 )
                 session.commit()
         except ValueError as exc:

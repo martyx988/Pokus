@@ -1,33 +1,33 @@
 {
-    "task_id":  "T73",
-    "generated_at_utc":  "2026-05-02T11:09:36Z",
-    "environment_assumptions":  [
-                                    "Executed on local Windows PowerShell runtime.",
-                                    "DATABASE_URL overridden to sqlite file for reproducible local gate execution.",
-                                    "Live provider network/API behavior may vary by time, region, or key quotas."
-                                ],
-    "prerequisite_command":  {
-                                 "command":  "python -m pokus_backend.db --migrate",
-                                 "status":  "fail",
-                                 "exit_code":  1,
-                                 "details":  "INFO  [alembic.runtime.migration] Context impl SQLiteImpl.\nINFO  [alembic.runtime.migration] Will assume non-transactional DDL.\nINFO  [alembic.runtime.migration] Running upgrade  -\u003e 0001_baseline, Baseline migration.\nINFO  [alembic.runtime.migration] Running upgrade 0001_baseline -\u003e 0002_exchange_instrument_type, Exchange and instrument type reference schema.\ndatabase-migrate-failed db=sqlite+pysqlite:///./.evidence/t73_gate_runtime.sqlite3 error=(sqlite3.OperationalError) near \"ALTER\": syntax error\n[SQL: ALTER TABLE exchange ALTER COLUMN is_launch_active DROP DEFAULT]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
-                             },
-    "live_commands":  [
-                          {
-                              "command_type":  "live_source_validation",
-                              "command":  "python -m pokus_backend.worker --run-live-source-probes --source-probe-run-key m31-t73-live-local-2026-05-02 --source-probe-sources YFINANCE",
-                              "status":  "fail",
-                              "exit_code":  1,
-                              "observed_on_utc":  "2026-05-02T11:09:36Z",
-                              "details":  "  File \"C:\\Users\\marty\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\sqlalchemy\\engine\\base.py\", line 2352, in _handle_dbapi_exception\n    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e\n  File \"C:\\Users\\marty\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\sqlalchemy\\engine\\base.py\", line 1964, in _exec_single_context\n    self.dialect.do_execute(\n  File \"C:\\Users\\marty\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\sqlalchemy\\engine\\default.py\", line 942, in do_execute\n    cursor.execute(statement, parameters)\nsqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: source_validation_record\n[SQL: SELECT source_validation_record.id, source_validation_record.validation_run_key, source_validation_record.source_code, source_validation_record.is_available, source_validation_record.auth_required, source_validation_record.quota_rate_limit_notes, source_validation_record.speed_notes, source_validation_record.exchange_coverage_notes, source_validation_record.observed_latency_ms, source_validation_record.classification_verdict, source_validation_record.assigned_role, source_validation_record.recorded_at, source_validation_record.updated_at \nFROM source_validation_record \nWHERE source_validation_record.validation_run_key = ? AND source_validation_record.source_code = ?]\n[parameters: (\u0027m31-t73-live-local-2026-05-02\u0027, \u0027YFINANCE\u0027)]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
-                          },
-                          {
-                              "command_type":  "combined_loader_runtime",
-                              "command":  "python -m pokus_backend.worker --run-combined-universe-loader",
-                              "status":  "fail",
-                              "exit_code":  1,
-                              "observed_on_utc":  "2026-05-02T11:09:36Z",
-                              "details":  "    self._handle_dbapi_exception(\n  File \"C:\\Users\\marty\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\sqlalchemy\\engine\\base.py\", line 2352, in _handle_dbapi_exception\n    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e\n  File \"C:\\Users\\marty\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\sqlalchemy\\engine\\base.py\", line 1964, in _exec_single_context\n    self.dialect.do_execute(\n  File \"C:\\Users\\marty\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\sqlalchemy\\engine\\default.py\", line 942, in do_execute\n    cursor.execute(statement, parameters)\nsqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: listing\n[SQL: SELECT listing.id, listing.instrument_id, listing.exchange_id, listing.symbol, listing.venue_name, instrument.id AS id_1, instrument.instrument_type_id, instrument.canonical_name, instrument.is_active, exchange.id AS id_2, exchange.code, exchange.name, exchange.is_launch_active, exchange.activity_priority_rank, exchange.activity_priority_score, instrument_type.id AS id_3, instrument_type.code AS code_1, instrument_type.name AS name_1, instrument_type.is_launch_active AS is_launch_active_1 \nFROM listing JOIN exchange ON exchange.id = listing.exchange_id JOIN instrument ON instrument.id = listing.instrument_id JOIN instrument_type ON instrument_type.id = instrument.instrument_type_id \nWHERE exchange.code IN (SELECT 1 FROM (SELECT 1) WHERE 1!=1) AND instrument_type.code IN (SELECT 1 FROM (SELECT 1) WHERE 1!=1)]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
-                          }
-                      ]
+  "task_id": "T73",
+  "generated_at_utc": "2026-05-02T11:20:28Z",
+  "environment_assumptions": [
+    "Executed on local Windows PowerShell runtime.",
+    "DATABASE_URL overridden to sqlite file for reproducible local gate execution.",
+    "T75 rerun refresh after T74 migration baseline fix."
+  ],
+  "prerequisite_command": {
+    "command": "python -m pokus_backend.db --migrate",
+    "status": "pass",
+    "exit_code": 0,
+    "details": "database-migrate-ok db=sqlite+pysqlite:///./.evidence/t75_gate_runtime.sqlite3"
+  },
+  "live_commands": [
+    {
+      "command_type": "live_source_validation",
+      "command": "python -m pokus_backend.worker --run-live-source-probes --source-probe-run-key m31-t75-live-local-2026-05-02 --source-probe-sources YFINANCE",
+      "status": "pass",
+      "exit_code": 0,
+      "observed_on_utc": "2026-05-02T11:20:13Z",
+      "details": "worker-live-source-probes-run-ok env=local run_key=m31-t75-live-local-2026-05-02 sources=1 succeeded=1 skipped=0 failed=0"
+    },
+    {
+      "command_type": "combined_loader_runtime",
+      "command": "python -m pokus_backend.worker --run-combined-universe-loader",
+      "status": "pass",
+      "exit_code": 0,
+      "observed_on_utc": "2026-05-02T11:20:28Z",
+      "details": "worker-combined-universe-loader-ok env=local effective_day=2026-05-02 sources=5 selected_listings=508 persisted_candidates=1009"
+    }
+  ]
 }
