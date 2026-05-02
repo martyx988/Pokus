@@ -6,6 +6,7 @@ from pokus_backend.discovery.adapter import (
     normalize_discovery_payloads,
 )
 from pokus_backend.discovery.contract import DiscoveryCandidate, candidate_from_payload
+from pokus_backend.discovery.combined_loader import CombinedUniverseLoaderResult, execute_combined_universe_loader
 from pokus_backend.discovery.persistence import (
     PersistDiscoveryCandidatesResult,
     persist_discovery_candidates,
@@ -25,6 +26,7 @@ __all__ = [
     "DiscoveryAdapter",
     "DiscoveryCandidate",
     "DiscoveryRequest",
+    "CombinedUniverseLoaderResult",
     "ListingRankingCandidate",
     "ListingSelectionEvidence",
     "ListingSelectionResult",
@@ -32,6 +34,7 @@ __all__ = [
     "SupportedUniverseProjectionResult",
     "candidate_from_payload",
     "normalize_discovery_payloads",
+    "execute_combined_universe_loader",
     "persist_discovery_candidates",
     "project_supported_universe_state",
     "select_best_listing",
