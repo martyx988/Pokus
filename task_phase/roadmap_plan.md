@@ -256,16 +256,17 @@ Ingestion and publication cannot be trusted until the system knows which instrum
 
 ### Goal
 
-Validate external data-source viability and implement the provider evidence model before relying on provider data for publication.
+Establish the shared provider evidence, adapter, and scoring foundation needed for later live source testing and loader implementation.
 
 ### Included Scope
 
-- Provider adapter interface for adjusted historical closes, official exchange-local opening prices, and discovery support where available.
-- Provider attempt logging with latency, errors, rate limits, stale/missing values, and raw normalized candidate metadata.
-- Candidate-value storage and selected-value audit evidence.
-- Global source-prioritization policy using provider/exchange reliability score, historical availability ratio, exchange coverage quality, and fixed source order.
-- Provider/exchange reliability scoring inputs from validation outcomes.
-- Validation workflow for launch exchanges covering discovery quality, primary-listing behavior, daily/historical completeness, timeliness, stale data, disagreement frequency, benchmark matches, and rate-limit behavior.
+- Provider adapter contracts for discovery, metadata, symbology, validation, and later price-loading roles.
+- Provider registry, source-role model, and source classification model.
+- Provider attempt logging with latency, errors, auth needs, rate limits, stale/missing values, and raw normalized candidate metadata.
+- Candidate-evidence storage and selected-value audit evidence foundations.
+- Global source-prioritization policy model using provider/exchange reliability score, historical availability ratio, exchange coverage quality, and fixed source order.
+- Provider/exchange reliability scoring inputs and update model.
+- Environment-variable and Docker wiring for authenticated provider testing without hardcoded secrets.
 - Calendar validation output and custom calendar adapter decision path if library calendars are missing or mismatched.
 
 ### Dependencies
@@ -275,25 +276,73 @@ Validate external data-source viability and implement the provider evidence mode
 
 ### Key Risks
 
-- Free sources may not satisfy completeness, correctness, or timeliness, especially for PSE.
+- Provider contracts may be too narrow for later real-source testing if role boundaries are not defined early.
 - Provider formats or availability may change during implementation.
 - Source-prioritization evidence can become too shallow for later investigations if not retained early.
 
 ### Validation Goal
 
-Prove that the combined provider strategy can meet the launch trust bar for NYSE, Nasdaq, and PSE without lowering coverage, correctness, or timeliness requirements.
+Prove that the system can record, explain, and rerun provider evidence consistently enough to support real source testing and multi-source loader implementation without locking the project to one provider strategy too early.
 
 ### Acceptance Criteria
 
 - Provider attempts and candidate values are retained for investigation.
 - Source-prioritization decisions are reproducible from stored evidence.
 - Provider/exchange reliability scores can be computed from validation and production-style outcomes.
-- Validation reports identify whether each launch exchange meets discovery, load completeness, load timeliness, and correctness expectations.
-- PSE failure, if observed, blocks launch validation and produces actionable source/adapter/calendar findings rather than scope reduction.
+- Environment-variable and Docker wiring support keyed provider execution without hardcoded secrets.
+- Provider/source role and classification data can support later live validation runs and combined loader decisions.
 
 ### Why This Comes Now
 
-Provider viability is the largest launch risk. It must be tested before the system invests heavily in higher-level workflows that depend on trusted market data.
+The project needs shared provider evidence, secret handling, and scoring structure before real source testing can happen safely and before higher-level workflows depend on any concrete loader behavior.
+
+### Milestone 3.1: Real Instrument-Universe Source Validation and Combined Loader
+
+### Goal
+
+Test all listed sources with real live requests for instrument-universe loading and metadata discovery, then implement and integrate one combined universe loader that uses multiple sources to achieve the required overall quality.
+
+### Included Scope
+
+- Real live validation runs for every listed source: `yfinance`, `EODHD`, `FMP`, `Finnhub`, `Alpha Vantage`, `Stooq`, `Tiingo`, `Marketstack`, `Polygon`, official `NASDAQ`/Nasdaq Trader sources, official `NYSE` sources, official `PSE`/`PSE EDGE`, `Twelve Data`, `OpenFIGI`, `Nasdaq Data Link`, `FRED`, `DBnomics`, `IMF`, `World Bank`, and `AkShare`.
+- Per-source evaluation of availability, auth requirements, quota/rate-limit behavior, speed, exchange coverage, symbol discovery quality, metadata quality, identifier quality, normalization usefulness, and specific usefulness for `NYSE`, `NASDAQ`, and `PSE`.
+- Explicit source classification from evidence: `promote`, `fallback only`, `validation only`, `not for universe loader`, or `reject`.
+- Role-based source assignment for the combined algorithm, such as primary discovery, metadata enrichment, symbology normalization, fallback discovery, and validation-only checks.
+- One real combined instrument-universe loader implementation that replaces the current placeholder path in the project.
+- Integration of the combined loader into the worker/project flow in its real production location, without waiting for later price-loading milestones.
+- Docker-runnable development path for real source execution with environment-based secrets.
+- Repo-tracked validation artifacts and rerun instructions covering per-source evidence and combined-loader outcomes.
+
+### Dependencies
+
+- Milestone 1 platform and job foundation.
+- Milestone 2 supported-universe structure, candidate listing model, and calendar abstraction.
+- Milestone 3 provider evidence, source-role, secret-wiring, and scoring foundation.
+
+### Key Risks
+
+- Several sources may be too weak on their own, especially for `PSE`, and the milestone can fail if the combined algorithm is judged too much like a single-source trust test.
+- Free-tier quotas, auth friction, or format drift can slow real validation runs and Docker repeatability.
+- Macro/enrichment sources may prove irrelevant to universe loading, but still consume validation effort because they must be tested and classified from real evidence.
+- Combined-loader behavior can become hard to reason about if source roles and evidence are not kept explicit and auditable.
+
+### Validation Goal
+
+Prove that the system can achieve launch-quality instrument-universe loading and metadata discovery for `NYSE`, `NASDAQ`, and `PSE` through a complementary multi-source algorithm, without requiring any single source to be sufficient on its own.
+
+### Acceptance Criteria
+
+- Every listed source is tested through real live requests, downloads, or equivalent real provider interaction where technically applicable, and the evidence is retained in repo-tracked validation artifacts.
+- Each tested source has an explicit classification, observed limits/availability notes, measured speed notes, exchange-coverage notes, and a reasoned role decision.
+- Sources that do not materially help instrument-universe loading are still tested and explicitly classified as `not for universe loader`, `validation only`, or `reject` from evidence.
+- The combined algorithm uses multiple sources where that improves overall universe and metadata quality rather than forcing one source to act as a universal trust anchor.
+- The placeholder instrument-universe loader path is replaced by a real integrated implementation in the project.
+- The combined universe loader runs in development against live sources and is runnable in Docker with environment-based secrets.
+- The integrated loader produces auditable supported-universe and metadata outputs for configured launch exchanges and preserves evidence needed for investigation.
+
+### Why This Comes Now
+
+The current instrument-universe load path is missing. It must be validated and implemented before current-day or historical price-loading milestones build on top of it, and it needs real source evidence rather than paper assumptions.
 
 ### Milestone 4: Core Daily Opening Publication Slice
 
@@ -319,7 +368,8 @@ Deliver the first working end-to-end current-day opening-price publication flow 
 
 - Milestone 1 platform and job foundation.
 - Milestone 2 supported universe and calendars.
-- Milestone 3 provider validation, candidate evidence, source prioritization, and benchmark basis.
+- Milestone 3 provider evidence, source prioritization, and benchmark basis.
+- Milestone 3.1 real source testing, source-role classification, and integrated universe loader.
 
 ### Key Risks
 
@@ -697,7 +747,7 @@ Product scope excludes crypto from launch and requires it to meet the same trust
 
 The roadmap starts with shared platform, data model, jobs, calendars, observability, and process separation because the architecture depends on a single codebase with clear API and worker roles. Without this foundation, later ingestion and publication work would be hard to make idempotent, auditable, and recoverable.
 
-Universe management comes before ingestion because the system must know the eligible instrument denominator before it can judge load completeness or publication readiness. Provider validation follows immediately because free-source quality is the largest external risk and can block launch, especially for Prague Stock Exchange.
+Universe management comes before ingestion because the system must know the eligible instrument denominator before it can judge load completeness or publication readiness. Provider foundation work follows immediately because free-source quality is the largest external risk and must be measurable before concrete loader behavior is locked in. Real source testing and the combined instrument-universe loader then come next, especially because Prague Stock Exchange can still block launch and the current universe-loading implementation gap must be closed before price/publication flows are built on top.
 
 The first end-to-end product slice is current-day opening-price publication. It exercises the essential trust loop with the least historical and signal complexity: provider evidence, selected prices, terminal outcomes, coverage, correctness validation, publication state, app readiness/current-price reads, and operator load visibility.
 
@@ -710,17 +760,18 @@ Exchange expansion and crypto admission come after launch validation because the
 ## 6. Dependency Map
 
 - Milestone 1 is the root dependency for all later work.
-- Milestone 2 depends on Milestone 1 and feeds Milestones 3, 4, 5, 8, 11, and 12.
-- Milestone 3 depends on Milestones 1 and 2 and feeds all ingestion, publication, validation, expansion, and crypto work.
-- Milestone 4 depends on Milestones 1 through 3 and creates the first app-visible publication slice.
+- Milestone 2 depends on Milestone 1 and feeds Milestones 3, 3.1, 4, 5, 8, 11, and 12.
+- Milestone 3 depends on Milestones 1 and 2 and feeds Milestone 3.1 plus later ingestion, publication, validation, expansion, and crypto work.
+- Milestone 3.1 depends on Milestones 1 through 3 and feeds Milestones 4, 8, 10, 11, and 12.
+- Milestone 4 depends on Milestones 1, 2, 3, and 3.1 and creates the first app-visible publication slice.
 - Milestone 5 depends on Milestones 3 and 4 and enables historical reads and signal inputs.
 - Milestone 6 depends on Milestone 5 and the existing alert algorithm.
 - Milestone 7 depends on Milestones 4, 5, and 6.
 - Milestone 8 depends on operational events from Milestones 4 through 7 and observability foundations from Milestone 1.
 - Milestone 9 depends on Milestones 5 through 8.
 - Milestone 10 depends on Milestones 1 through 9 and gates production launch.
-- Milestone 11 depends on the validated launch machinery from Milestones 2 through 10.
-- Milestone 12 depends on the full launch and expansion foundations from Milestones 1 through 11 plus crypto-specific provider validation.
+- Milestone 11 depends on the validated launch machinery from Milestones 2, 3, 3.1, and 4 through 10.
+- Milestone 12 depends on the full launch and expansion foundations from Milestones 1, 2, 3, 3.1, and 4 through 11 plus crypto-specific provider validation.
 
 ## 7. Roadmap-Level Testing Strategy
 
@@ -739,9 +790,16 @@ Exchange expansion and crypto admission come after launch validation because the
 ### Milestone 3
 
 - Contract tests for provider adapters and normalized candidate records.
-- Integration tests for provider attempt logging, candidate-value storage, source-prioritized selection, reliability-score updates, and validation result generation.
+- Integration tests for provider attempt logging, candidate-evidence storage, source-role/classification persistence, reliability-score updates, secret wiring, and validation result generation.
 - Fault-injection tests for provider timeouts, rate limits, stale data, missing data, conflicting values, and malformed responses.
-- Validation test runs against launch exchange data samples, with special attention to PSE.
+
+### Milestone 3.1
+
+- Real live validation runs against every listed source, including keyed and non-keyed execution paths where applicable.
+- Integration tests for per-source classification, role assignment, combined-loader evidence retention, and supported-universe output generation.
+- Docker execution tests for the integrated universe loader with environment-based secrets.
+- Comparative test runs showing how the combined algorithm improves overall universe and metadata quality beyond any single-source-only strategy.
+- Special validation attention for `PSE`, including proof that weak auxiliary sources are still classified accurately even when they are not promotable.
 
 ### Milestone 4
 
@@ -794,7 +852,7 @@ Exchange expansion and crypto admission come after launch validation because the
 - Validation-suite tests for candidate exchange and crypto admission.
 - Regression tests ensuring new exchanges or `CRY` do not weaken supported-universe visibility, publication, correctness, retention, signal, or operator rules.
 
-Integration testing becomes critical at Milestone 3 because provider behavior, calendars, source prioritization, and validation outcomes must work together. Full end-to-end testing becomes critical at Milestone 4 when publication gates app-visible data. Performance testing should begin at Milestone 4 and broaden at Milestones 6 and 10.
+Integration testing becomes critical at Milestone 3 because provider behavior, calendars, source prioritization, and validation outcomes must work together. Real live source testing becomes critical at Milestone 3.1 because the combined universe loader must be proven against actual provider behavior, not only contracts. Full end-to-end testing becomes critical at Milestone 4 when publication gates app-visible data. Performance testing should begin at Milestone 3.1 for source-speed measurement and broaden at Milestones 4, 6, and 10.
 
 ## 8. Observability Rollout Plan
 
@@ -813,6 +871,7 @@ From Milestones 2 through 4, logs must add:
 - Calendar decisions for market-open and market-closed days.
 - Provider attempts, provider failures, rate limits, stale/missing data, and latency.
 - Candidate conflicts, source-prioritization decisions, selected source, and selection reason.
+- Source classification outcomes, combined-loader role decisions, and real validation-run summaries.
 - Publication decisions, coverage calculations, correctness-validation results, and publication blocks.
 
 Later logs must add:
@@ -832,6 +891,7 @@ From Milestone 1, track:
 From Milestones 3 and 4, track:
 
 - Exchange/day status, eligible instrument count, successful load count, failed load count, coverage percentage, load duration, provider success/error/timeout/rate-limit counts, benchmark mismatch percentage, correctness-validation blocked state, job retry counts, read-model refresh duration, and API latency for readiness/current-price endpoints.
+- Per-source availability, observed quota/rate-limit events, validation-run duration, source classification counts, and combined-loader contribution patterns during Milestone 3.1.
 
 From Milestones 5 through 7, add:
 
@@ -856,13 +916,13 @@ Alerting becomes necessary no later than Milestone 8, before production launch h
 
 ### Free Provider Quality Is Insufficient
 
-- Affected milestone: Milestones 3, 4, 5, 10, 11, 12.
+- Affected milestone: Milestones 3, 3.1, 4, 5, 10, 11, 12.
 - Impact: Launch blocked or publication windows missed.
 - Mitigation approach: Validate providers early, combine complementary free sources, retain provider evidence, update provider/exchange reliability scores, and block launch rather than lowering trust bar.
 
 ### Prague Stock Exchange Fails Trust Bar
 
-- Affected milestone: Milestones 3 and 10.
+- Affected milestone: Milestones 3.1 and 10.
 - Impact: Launch blocked because PSE is mandatory.
 - Mitigation approach: Iterate on source discovery, provider combination, adapter behavior, and calendar validation until PSE passes the same criteria as NYSE and Nasdaq.
 
@@ -880,13 +940,13 @@ Alerting becomes necessary no later than Milestone 8, before production launch h
 
 ### Source Prioritization Is Not Explainable
 
-- Affected milestone: Milestones 3, 4, 5, 8, 9.
+- Affected milestone: Milestones 3, 3.1, 4, 5, 8, 9.
 - Impact: Operator cannot investigate conflicting or incorrect provider values.
 - Mitigation approach: Persist candidate values, selected source, selection reason, provider attempts, reliability inputs, and provider/exchange score changes.
 
 ### Multi-Listed Instrument Resolution Is Ambiguous
 
-- Affected milestone: Milestones 2, 3, 10, 11.
+- Affected milestone: Milestones 2, 3.1, 10, 11.
 - Impact: Wrong supported listing, duplicate company exposure, or unstable universe.
 - Mitigation approach: Store stable identifiers when available, record ranking evidence, normalize turnover, track symbol/name/identifier changes, and audit selection outcomes during validation.
 
@@ -942,12 +1002,19 @@ Alerting becomes necessary no later than Milestone 8, before production launch h
 - Universe-change records are auditable.
 - Calendar abstraction can identify expected trading and closed days.
 
-### Gate to Milestone 4
+### Gate to Milestone 3.1
 
 - Provider adapters can produce normalized candidates.
 - Provider attempts and candidate evidence are stored.
 - Source-prioritization decisions are reproducible.
-- Initial launch exchange validation has enough evidence to proceed with daily publication implementation.
+- Docker and environment-variable wiring can run keyed providers without hardcoded secrets.
+
+### Gate to Milestone 4
+
+- All listed sources have been tested and classified from real evidence.
+- The combined instrument-universe loader is integrated into the project and replaces the placeholder path.
+- Development and Docker execution paths can run the live universe loader with environment-based secrets.
+- Launch exchanges have an auditable multi-source universe-loading strategy strong enough to proceed into daily price-publication work.
 
 ### Gate to Milestone 5
 
