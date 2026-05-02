@@ -20,6 +20,17 @@ This folder contains the initial backend skeleton for a modular monolith with se
 - `APP_READ_TOKEN` (default: `dev-app-token`)
 - `OPERATOR_SESSION_TOKEN` (default: `dev-operator-token`)
 - `ADMIN_SESSION_TOKEN` (default: `dev-admin-token`)
+- keyed probe credentials (required for full keyed-source runs):
+  - `EODHD_API_KEY`
+  - `FMP_API_KEY`
+  - `FINNHUB_API_KEY`
+  - `ALPHA_VANTAGE_API_KEY`
+  - `TIINGO_API_KEY`
+  - `MARKETSTACK_API_KEY`
+  - `POLYGON_API_KEY`
+  - `TWELVE_DATA_API_KEY`
+- optional probe credential:
+  - `OPENFIGI_API_KEY` (optional, improves probe quota/availability)
 
 Copy `.env.example` to your local environment before running checks.
 
@@ -109,4 +120,79 @@ python -m pytest -q tests/test_validation_concrete_provider_runtime.py
 ```
 
 The command calls the concrete Stooq adapter (`AAPL.US`) through the normal validation orchestrator path and writes runtime evidence to `provider_attempt` and `candidate_price_value`.
+
+## Milestone 3.1 rerun path (live probes + combined loader)
+
+Required setup:
+
+```powershell
+cd Project
+Copy-Item .env.example .env
+```
+
+Fill real API keys only in local `.env` (never commit).
+
+### Local dev path
+
+Run migrations:
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+python -m pokus_backend.db --migrate
+```
+
+Run live source probes through worker runtime:
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+python -m pokus_backend.worker --run-live-source-probes --source-probe-run-key m31-live-local-2026-05-02 --source-probe-sources YFINANCE,STOOQ,AKSHARE,EODHD,FMP,FINNHUB,ALPHA_VANTAGE,TIINGO,MARKETSTACK,POLYGON,TWELVE_DATA,NASDAQ_TRADER,NYSE,PSE_PSE_EDGE,OPENFIGI,NASDAQ_DATA_LINK
+```
+
+Run combined universe loader through worker runtime:
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+python -m pokus_backend.worker --run-combined-universe-loader
+```
+
+Expected evidence outputs:
+
+- DB `source_validation_record` rows for the run key
+- worker stdout `worker-live-source-probe-result ...` lines
+- worker stdout `worker-combined-universe-loader-ok ...` summary
+
+### Docker path
+
+Start DB:
+
+```powershell
+cd Project
+docker compose -f docker-compose.dev.yml up -d postgres
+```
+
+Run migrations from host against Docker DB:
+
+```powershell
+cd Project
+$env:PYTHONPATH = "src"
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/pokus"
+python -m pokus_backend.db --migrate
+```
+
+Run live probes in Docker worker service:
+
+```powershell
+cd Project
+docker compose -f docker-compose.dev.yml run --rm dev-worker --run-live-source-probes --source-probe-run-key m31-live-docker-2026-05-02 --source-probe-sources YFINANCE,STOOQ,AKSHARE,EODHD,FMP,FINNHUB,ALPHA_VANTAGE,TIINGO,MARKETSTACK,POLYGON,TWELVE_DATA,NASDAQ_TRADER,NYSE,PSE_PSE_EDGE,OPENFIGI,NASDAQ_DATA_LINK
+```
+
+Run combined loader in Docker worker service:
+
+```powershell
+cd Project
+docker compose -f docker-compose.dev.yml run --rm dev-worker --run-combined-universe-loader
+```
 
