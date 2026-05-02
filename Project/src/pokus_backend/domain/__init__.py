@@ -12,6 +12,11 @@ from pokus_backend.domain.instrument_models import (
 )
 from pokus_backend.domain.reference_models import Base, Exchange, InstrumentType
 from pokus_backend.domain.signal_models import SignalEvent, SignalStatistic
+from pokus_backend.domain.source_validation_models import (
+    SourceValidationRecord,
+    SourceValidationRole,
+    SourceValidationVerdict,
+)
 from pokus_backend.domain.universe_change_models import UniverseChangeEventType, UniverseChangeRecord
 
 __all__ = [
@@ -28,6 +33,9 @@ __all__ = [
     "PriceRecord",
     "SignalEvent",
     "SignalStatistic",
+    "SourceValidationRecord",
+    "SourceValidationRole",
+    "SourceValidationVerdict",
     "SupportedUniverseState",
     "SupportedUniverseStatus",
     "UniverseChangeEventType",
