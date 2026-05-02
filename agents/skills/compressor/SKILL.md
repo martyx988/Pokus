@@ -5,7 +5,7 @@ description: "This skill should be used when the user asks to 'compress markdown
 
 # Markdown Compression
 
-Markdown compression reduces token consumption in LLM-facing documentation — agent instructions, CLAUDE.md files, ARCHITECTURE.md files, system prompts, and skill definitions — while preserving the information an LLM needs to operate correctly.
+Markdown compression reduces token consumption in LLM-facing documentation — agent instructions, ARCHITECTURE.md files, system prompts, and skill definitions — while preserving the information an LLM needs to operate correctly.
 
 Two modes address different risk tolerances:
 
@@ -59,7 +59,6 @@ Lossless compression changes structure without altering semantics. Apply these t
 5. **Normalize lists** — standardize bullet markers, remove excessive nesting where flat structure suffices
 6. **Trim boilerplate** — remove "Table of Contents" sections that duplicate header structure, remove empty sections
 
-For detailed lossless transformation rules and before/after examples, consult `references/lossless-techniques.md`.
 
 ## Lossy Mode
 
@@ -90,8 +89,6 @@ The reviewer specifically checks for:
 - Missing edge cases or conditional logic
 - Over-generalized instructions that lost precision
 - Broken cross-references
-
-For detailed lossy techniques and worked examples, consult `references/lossy-techniques.md`.
 
 ## Pre-Analysis
 
