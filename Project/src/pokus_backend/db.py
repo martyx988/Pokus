@@ -8,7 +8,11 @@ from urllib.parse import urlsplit, urlunsplit
 import psycopg
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import create_engine
 
+from pokus_backend.domain.instrument_models import Listing  # noqa: F401
+from pokus_backend.domain.reference_models import Base
+from pokus_backend.domain.source_validation_models import SourceValidationRecord  # noqa: F401
 from pokus_backend.domain.reference_baseline import seed_launch_baseline_records
 from pokus_backend.settings import load_settings
 
@@ -30,10 +34,20 @@ def check_database_connection(database_url: str) -> None:
 
 
 def run_migrations(database_url: str) -> None:
+    sqlalchemy_url = to_sqlalchemy_url(database_url)
+    if sqlalchemy_url.startswith("sqlite"):
+        engine = create_engine(sqlalchemy_url)
+        try:
+            Base.metadata.create_all(engine)
+            seed_launch_baseline_records(database_url)
+        finally:
+            engine.dispose()
+        return
+
     project_root = Path(__file__).resolve().parents[2]
     alembic_cfg = Config(str(project_root / "alembic.ini"))
     alembic_cfg.set_main_option("script_location", str(project_root / "migrations"))
-    sqlalchemy_url = to_sqlalchemy_url(database_url).replace("%", "%%")
+    sqlalchemy_url = sqlalchemy_url.replace("%", "%%")
     alembic_cfg.set_main_option("sqlalchemy.url", sqlalchemy_url)
     command.upgrade(alembic_cfg, "head")
 
